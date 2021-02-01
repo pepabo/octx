@@ -1,0 +1,73 @@
+query ListIssuesQuery($owner: String!, $name: String!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    issues(first: 100, after: $after) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      nodes {
+        id
+        number
+        title
+        url
+        assignees(first: 100) {
+          nodes {
+            email
+            login
+            name
+          }
+        }
+        activeLockReason
+        author {
+          __typename
+          ... on User {
+            id
+            email
+            login
+            name
+          }
+        }
+        authorAssociation
+        body
+        closed
+        closedAt
+        createdAt
+        comments {
+          totalCount
+        }
+        createdViaEmail
+        databaseId
+        editor {
+          __typename
+          login
+        }
+        includesCreatedEdit
+        labels(first: 100) {
+          nodes {
+            name
+            id
+            description
+            color
+          }
+        }
+        lastEditedAt
+        locked
+        milestone {
+          title
+          number
+        }
+        participants(first: 100) {
+          totalCount
+          nodes {
+            login
+            name
+          }
+        }
+        publishedAt
+        resourcePath
+        state
+        updatedAt
+      }
+    }
+  }
+}
