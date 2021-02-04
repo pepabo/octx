@@ -8,10 +8,11 @@ edition = "2018"
 chrono = { version = "^0.4", features = ["serde"] }
 anyhow = "1.0"
 graphql_client = "0.9"
-serde = "^1.0"
+serde = { version = "^1", features = ["derive"] }
 reqwest = { version = "^0.10", features = ["json", "blocking"] }
 prettytable-rs = "^0.7"
 structopt = "^0.3"
 envy = "^0.3"
 log = "^0.4"
 env_logger = "^0.8"
+csv = "^1.1"

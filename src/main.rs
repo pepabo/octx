@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::*;
 use graphql_client::*;
 use log::*;
@@ -6,6 +8,7 @@ use serde::*;
 use structopt::StructOpt;
 // use chrono::Utc;
 use chrono::Local;
+use csv::WriterBuilder;
 
 type URI = String;
 type DateTime = chrono::DateTime<Local>;
@@ -17,6 +20,44 @@ type DateTime = chrono::DateTime<Local>;
     response_derives = "Debug"
 )]
 struct ListIssuesQuery;
+
+#[derive(Serialize, Debug)]
+struct IssueRow<'x> {
+    pub id: &'x str,
+    pub number: i64,
+    pub title: &'x str,
+    pub url: &'x str,
+    pub assignees: &'x str,
+    pub active_lock_reason: Option<&'x list_issues_query::LockReason>,
+    pub author_email: &'x str,
+    pub author_login: &'x str,
+    pub author_association: i32,
+    pub body: &'x str,
+    pub closed: bool,
+    pub closed_at: Option<DateTime>,
+    pub created_at: DateTime,
+    pub comments_count: i32,
+    pub created_via_email: bool,
+    pub database_id: Option<i64>,
+    pub editor_login: &'x str,
+    pub includes_created_edit: bool,
+    pub labels: &'x str,
+    pub last_edited_at: Option<DateTime>,
+    pub locked: bool,
+    pub milestone_title: &'x str,
+    pub milestone_number: i32,
+    pub published_at: Option<DateTime>,
+    pub resource_path: String,
+    pub state: &'x list_issues_query::IssueState,
+    pub updated_at: DateTime,
+    // participants(first: 100) {
+    //   totalCount
+    //   nodes {
+    //     login
+    //     name
+    //   }
+    // }
+}
 
 #[derive(StructOpt)]
 #[structopt(author, about)]
@@ -43,22 +84,20 @@ fn main() -> Result<()> {
     let owner = args.owner;
     let name = args.name;
     let mut has_next = true;
+    let mut has_header = true;
     let mut first = true;
     let mut cursor = String::from("");
 
     while has_next {
-        let after: Option<String> = if first {
-            None
-        } else {
-            Some(cursor.clone())
-        };
+        let after: Option<String> = if first { None } else { Some(cursor.clone()) };
         let q = ListIssuesQuery::build_query(list_issues_query::Variables {
-            owner: owner.clone(),
             name: name.clone(),
+            owner: owner.clone(),
             after: after,
         });
 
         let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(120))
             .user_agent("ghex(graphql-rust/0.9.0)")
             .build()?;
 
@@ -96,20 +135,48 @@ fn main() -> Result<()> {
             cursor = String::from(cursor_.unwrap());
         }
         let nodes = issues.nodes.as_ref().expect("No Issues");
+        let mut wtr = WriterBuilder::new()
+            .has_headers(has_header)
+            .from_writer(vec![]);
         for issue in nodes {
             let issue = issue.as_ref().unwrap();
             let author = issue.author.as_ref().unwrap();
             if let User(author) = &author.on {
-                println!("{},{},{},{},{},{}",
-                         issue.number,
-                         issue.title,
-                         author.email,
-                         author.login,
-                         issue.created_at,
-                         issue.updated_at
-                );
+                let row = IssueRow {
+                    id: &issue.id,
+                    number: issue.number,
+                    title: &issue.title,
+                    url: &issue.url,
+                    assignees: "",
+                    active_lock_reason: issue.active_lock_reason.as_ref(),
+                    author_email: &author.email,
+                    author_login: &author.login,
+                    author_association: 0,
+                    body: &issue.body,
+                    closed: issue.closed,
+                    closed_at: issue.closed_at,
+                    created_at: issue.created_at,
+                    comments_count: 0,
+                    created_via_email: issue.created_via_email,
+                    database_id: issue.database_id,
+                    editor_login: "",
+                    includes_created_edit: false,
+                    labels: "",
+                    last_edited_at: issue.last_edited_at,
+                    locked: issue.locked,
+                    milestone_title: "",
+                    milestone_number: 1,
+                    published_at: issue.published_at,
+                    resource_path: issue.resource_path.clone(),
+                    state: &issue.state,
+                    updated_at: issue.updated_at,
+                };
+                wtr.serialize(&row)?;
             }
         }
+        println!("{}", String::from_utf8(wtr.into_inner()?)?);
+        eprintln!("Iterated");
+        has_header = false; // Force false in 2nd loop
     }
 
     Ok(())
