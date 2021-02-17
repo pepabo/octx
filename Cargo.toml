@@ -5,12 +5,16 @@ authors = ["Uchio Kondo <udzura@udzura.jp>"]
 edition = "2018"
 
 [dependencies]
+url = "^0"
 chrono = { version = "^0.4", features = ["serde"] }
 anyhow = "1.0"
-graphql_client = "0.9"
-serde = { version = "^1", features = ["derive"] }
-reqwest = { version = "^0.10", features = ["json", "blocking"] }
-prettytable-rs = "^0.7"
+#octocrab = { path = "../../XAMPPRocky/octocrab" }
+octocrab = { git = "https://github.com/XAMPPRocky/octocrab" }
+tokio = { version = "1.0", default-features = false, features = ["macros", "rt-multi-thread", "time"] }
+# graphql_client = "0.9"
+serde = { version = "1.0.106", features = ["derive"] }
+reqwest = { version = "0.11.0", default-features = false, features = ["json"] }
+#prettytable-rs = "^0.7"
 structopt = "^0.3"
 envy = "^0.3"
 log = "^0.4"
