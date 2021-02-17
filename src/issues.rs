@@ -1,11 +1,12 @@
+use csv::Writer;
 use octocrab::models::issues::*;
-use octocrab::models::*;
+use octocrab::params;
 use reqwest::Url;
 use serde::*;
 type DateTime = chrono::DateTime<chrono::Utc>;
 
 #[derive(Serialize, Debug)]
-pub struct IssueRec {
+struct IssueRec {
     pub id: i64,
     pub node_id: String,
     pub url: Url,
@@ -30,15 +31,15 @@ pub struct IssueRec {
     pub active_lock_reason: Option<String>,
     pub comments: u32,
     pub pull_request: Option<Url>,
-    pub closed_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub closed_at: Option<DateTime>,
+    pub created_at: DateTime,
+    pub updated_at: DateTime,
 }
 
 impl From<Issue> for IssueRec {
     fn from(from: Issue) -> IssueRec {
-        let mut labels = from.labels;
-        let mut assignees = from.assignees;
+        let labels = from.labels;
+        let assignees = from.assignees;
 
         IssueRec {
             id: from.id,
@@ -86,5 +87,48 @@ impl From<Issue> for IssueRec {
             created_at: from.created_at,
             updated_at: from.updated_at,
         }
+    }
+}
+
+pub struct IssueFetcher {
+    owner: String,
+    name: String,
+    octocrab: octocrab::Octocrab,
+}
+
+impl IssueFetcher {
+    pub fn new(owner: String, name: String, octocrab: octocrab::Octocrab) -> IssueFetcher {
+        IssueFetcher {
+            owner,
+            name,
+            octocrab,
+        }
+    }
+
+    pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
+        let mut page = self
+            .octocrab
+            .issues(&self.owner, &self.name)
+            .list()
+            .state(params::State::All)
+            .per_page(100)
+            .send()
+            .await?;
+
+        let mut issues: Vec<Issue> = page.take_items();
+        for issue in issues.drain(..) {
+            let issue: IssueRec = issue.into();
+            wtr.serialize(&issue).expect("Serialize failed");
+        }
+        while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
+            issues.extend(newpage.take_items());
+            for issue in issues.drain(..) {
+                let issue: IssueRec = issue.into();
+                wtr.serialize(&issue).expect("Serialize failed");
+            }
+            page = newpage;
+        }
+
+        Ok(())
     }
 }
