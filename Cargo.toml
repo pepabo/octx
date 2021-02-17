@@ -1,5 +1,5 @@
 [package]
-name = "ghex"
+name = "octx"
 version = "0.1.0"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
 edition = "2018"
