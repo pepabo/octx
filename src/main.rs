@@ -22,9 +22,9 @@ struct Command {
     target_comments: bool,
     #[structopt(long = "labels")]
     target_labels: bool,
-    #[structopt(long = "owner")]
+    #[structopt(long = "owner", default_value = ""]
     owner: String,
-    #[structopt(long = "name")]
+    #[structopt(long = "name", default_value = "")]
     name: String,
 }
 
