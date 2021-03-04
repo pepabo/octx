@@ -10,6 +10,8 @@ mod issues;
 use issues::IssueFetcher;
 mod comments;
 use comments::CommentFetcher;
+mod labels;
+use labels::LabelFetcher;
 
 #[derive(StructOpt)]
 #[structopt(author, about)]
@@ -18,6 +20,8 @@ struct Command {
     target_issues: bool,
     #[structopt(long = "comments")]
     target_comments: bool,
+    #[structopt(long = "labels")]
+    target_labels: bool,
     #[structopt(long = "owner")]
     owner: String,
     #[structopt(long = "name")]
@@ -54,8 +58,12 @@ async fn main() -> octocrab::Result<()> {
         let runner = IssueFetcher::new(owner, name, octocrab);
         runner.run(wtr).await?;
     } else if args.target_comments {
-        info!("Target: issues");
+        info!("Target: comments");
         let runner = CommentFetcher::new(owner, name, octocrab);
+        runner.run(wtr).await?;
+    } else if args.target_labels {
+        info!("Target: labes");
+        let runner = LabelFetcher::new(owner, name, octocrab);
         runner.run(wtr).await?;
     } else {
         error!("No target specified");
