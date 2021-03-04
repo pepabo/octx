@@ -8,7 +8,7 @@ edition = "2018"
 url = "^0"
 chrono = { version = "^0.4", features = ["serde"] }
 anyhow = "1.0"
-#octocrab = { path = "../../XAMPPRocky/octocrab" }
+# octocrab = { path = "../../XAMPPRocky/octocrab" }
 octocrab = { git = "https://github.com/XAMPPRocky/octocrab" }
 tokio = { version = "1.0", default-features = false, features = ["macros", "rt-multi-thread", "time"] }
 # graphql_client = "0.9"

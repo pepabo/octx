@@ -660,7 +660,7 @@ checksum = "a9a7ab5d64814df0fe4a4b5ead45ed6c5f181ee3ff04ba344313a6c80446c5d4"
 [[package]]
 name = "octocrab"
 version = "0.8.11"
-source = "git+https://github.com/XAMPPRocky/octocrab#83b522c5196d0e411346941f8573c21b33438748"
+source = "git+https://github.com/XAMPPRocky/octocrab#d3beecdae4f1df5401d675e1cfeeb67e2915420d"
 dependencies = [
  "arc-swap",
  "async-trait",

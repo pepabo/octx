@@ -8,12 +8,16 @@ use std::io;
 
 mod issues;
 use issues::IssueFetcher;
+mod comments;
+use comments::CommentFetcher;
 
 #[derive(StructOpt)]
 #[structopt(author, about)]
 struct Command {
     #[structopt(long = "issues")]
     target_issues: bool,
+    #[structopt(long = "comments")]
+    target_comments: bool,
     #[structopt(long = "owner")]
     owner: String,
     #[structopt(long = "name")]
@@ -48,6 +52,10 @@ async fn main() -> octocrab::Result<()> {
     if args.target_issues {
         info!("Target: issues");
         let runner = IssueFetcher::new(owner, name, octocrab);
+        runner.run(wtr).await?;
+    } else if args.target_comments {
+        info!("Target: issues");
+        let runner = CommentFetcher::new(owner, name, octocrab);
         runner.run(wtr).await?;
     } else {
         error!("No target specified");
