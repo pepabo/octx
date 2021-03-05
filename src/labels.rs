@@ -1,9 +1,7 @@
 use csv::Writer;
 use octocrab::models::*;
-use octocrab::params;
 use reqwest::Url;
 use serde::*;
-type DateTime = chrono::DateTime<chrono::Utc>;
 
 #[derive(Serialize, Debug)]
 pub struct LabelRec {

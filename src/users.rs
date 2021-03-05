@@ -1,10 +1,8 @@
 use csv::Writer;
 use octocrab::models::User;
-use octocrab::params;
 use octocrab::Page;
 use reqwest::Url;
 use serde::*;
-type DateTime = chrono::DateTime<chrono::Utc>;
 
 pub struct UserFetcher {
     octocrab: octocrab::Octocrab,
