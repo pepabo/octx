@@ -12,6 +12,8 @@ pub struct LabelRec {
     pub description: Option<String>,
     pub color: String,
     pub default: bool,
+
+    pub sdc_repository: String,
 }
 
 impl From<Label> for LabelRec {
@@ -24,6 +26,8 @@ impl From<Label> for LabelRec {
             description: from.description,
             color: from.color,
             default: from.default,
+
+            sdc_repository: String::default(),
         }
     }
 }
@@ -43,6 +47,10 @@ impl LabelFetcher {
         }
     }
 
+    pub fn reponame(&self) -> String {
+        format!("{}/{}", self.owner, self.name)
+    }
+
     pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
         let mut page = self
             .octocrab
@@ -54,13 +62,15 @@ impl LabelFetcher {
 
         let mut labels: Vec<Label> = page.take_items();
         for label in labels.drain(..) {
-            let label: LabelRec = label.into();
+            let mut label: LabelRec = label.into();
+            label.sdc_repository = self.reponame();
             wtr.serialize(&label).expect("Serialize failed");
         }
         while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
             labels.extend(newpage.take_items());
             for label in labels.drain(..) {
-                let label: LabelRec = label.into();
+                let mut label: LabelRec = label.into();
+                label.sdc_repository = self.reponame();
                 wtr.serialize(&label).expect("Serialize failed");
             }
             page = newpage;
