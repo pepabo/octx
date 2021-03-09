@@ -16,6 +16,8 @@ pub struct CommentRec {
     pub user_id: i64,
     pub created_at: DateTime,
     pub updated_at: Option<DateTime>,
+
+    pub sdc_repository: String,
 }
 
 impl From<Comment> for CommentRec {
@@ -31,6 +33,8 @@ impl From<Comment> for CommentRec {
             user_id: from.user.id,
             created_at: from.created_at,
             updated_at: from.updated_at,
+
+            sdc_repository: String::default(),
         }
     }
 }
@@ -50,6 +54,10 @@ impl CommentFetcher {
         }
     }
 
+    pub fn reponame(&self) -> String {
+        format!("{}/{}", self.owner, self.name)
+    }
+
     pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
         let mut page = self
             .octocrab
@@ -61,13 +69,15 @@ impl CommentFetcher {
 
         let mut comments: Vec<Comment> = page.take_items();
         for comment in comments.drain(..) {
-            let comment: CommentRec = comment.into();
+            let mut comment: CommentRec = comment.into();
+            comment.sdc_repository = self.reponame();
             wtr.serialize(&comment).expect("Serialize failed");
         }
         while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
             comments.extend(newpage.take_items());
             for comment in comments.drain(..) {
-                let comment: CommentRec = comment.into();
+                let mut comment: CommentRec = comment.into();
+                comment.sdc_repository = self.reponame();
                 wtr.serialize(&comment).expect("Serialize failed");
             }
             page = newpage;
