@@ -34,6 +34,8 @@ struct IssueRec {
     pub closed_at: Option<DateTime>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
+
+    pub sdc_repository: String,
 }
 
 impl From<Issue> for IssueRec {
@@ -86,6 +88,8 @@ impl From<Issue> for IssueRec {
             closed_at: from.closed_at,
             created_at: from.created_at,
             updated_at: from.updated_at,
+
+            sdc_repository: String::default(),
         }
     }
 }
@@ -105,6 +109,10 @@ impl IssueFetcher {
         }
     }
 
+    pub fn reponame(&self) -> String {
+        format!("{}/{}", self.owner, self.name)
+    }
+
     pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
         let mut page = self
             .octocrab
@@ -117,13 +125,15 @@ impl IssueFetcher {
 
         let mut issues: Vec<Issue> = page.take_items();
         for issue in issues.drain(..) {
-            let issue: IssueRec = issue.into();
+            let mut issue: IssueRec = issue.into();
+            issue.sdc_repository = self.reponame();
             wtr.serialize(&issue).expect("Serialize failed");
         }
         while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
             issues.extend(newpage.take_items());
             for issue in issues.drain(..) {
-                let issue: IssueRec = issue.into();
+                let mut issue: IssueRec = issue.into();
+                issue.sdc_repository = self.reponame();
                 wtr.serialize(&issue).expect("Serialize failed");
             }
             page = newpage;
