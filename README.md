@@ -1,6 +1,6 @@
 # octx
 
-GitHub Data Extractor
+GitHub Data Extractor [![Test](https://github.com/udzura/octx/actions/workflows/ci.yml/badge.svg)](https://github.com/udzura/octx/actions/workflows/ci.yml)
 
 ## usage
 
