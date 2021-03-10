@@ -1,4 +1,4 @@
-mod comments;
-mod issues;
-mod labels;
-mod users;
+pub mod comments;
+pub mod issues;
+pub mod labels;
+pub mod users;
