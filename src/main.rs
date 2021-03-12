@@ -26,6 +26,8 @@ struct Command {
     target_labels: bool,
     #[structopt(long = "users")]
     target_users: bool,
+    #[structopt(long = "days-ago")]
+    days_ago: Option<i32>,
     #[structopt(long = "owner", default_value = "")]
     owner: String,
     #[structopt(long = "name", default_value = "")]
