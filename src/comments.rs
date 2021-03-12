@@ -58,14 +58,18 @@ impl CommentFetcher {
         format!("{}/{}", self.owner, self.name)
     }
 
-    pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
-        let mut page = self
-            .octocrab
-            .issues(&self.owner, &self.name)
-            .list_issue_comments()
-            .per_page(100)
-            .send()
-            .await?;
+    pub async fn run<T: std::io::Write>(
+        &self,
+        since: Option<DateTime>,
+        mut wtr: Writer<T>,
+    ) -> octocrab::Result<()> {
+        let ibuilder = self.octocrab.issues(&self.owner, &self.name);
+        let mut builder = ibuilder.list_issue_comments().per_page(100);
+        if let Some(since) = since {
+            builder = builder.since(since);
+        }
+
+        let mut page = builder.send().await?;
 
         let mut comments: Vec<Comment> = page.take_items();
         for comment in comments.drain(..) {

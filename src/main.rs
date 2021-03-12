@@ -1,4 +1,5 @@
 use anyhow::*;
+use chrono::{Duration, Utc};
 use csv::WriterBuilder;
 use log::*;
 use serde::*;
@@ -27,7 +28,7 @@ struct Command {
     #[structopt(long = "users")]
     target_users: bool,
     #[structopt(long = "days-ago")]
-    days_ago: Option<i32>,
+    days_ago: Option<i64>,
     #[structopt(long = "owner", default_value = "")]
     owner: String,
     #[structopt(long = "name", default_value = "")]
@@ -66,7 +67,8 @@ async fn main() -> octocrab::Result<()> {
     } else if args.target_comments {
         info!("Target: comments");
         let runner = CommentFetcher::new(owner, name, octocrab);
-        runner.run(wtr).await?;
+        let since = args.days_ago.map(|ago| Utc::now() - Duration::days(ago));
+        runner.run(since, wtr).await?;
     } else if args.target_labels {
         info!("Target: labes");
         let runner = LabelFetcher::new(owner, name, octocrab);
