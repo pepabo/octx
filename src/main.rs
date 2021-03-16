@@ -15,6 +15,8 @@ mod labels;
 use labels::LabelFetcher;
 mod users;
 use users::UserFetcher;
+mod api_ext;
+use api_ext::*;
 
 #[derive(StructOpt)]
 #[structopt(author, about)]
@@ -27,6 +29,8 @@ struct Command {
     target_labels: bool,
     #[structopt(long = "users")]
     target_users: bool,
+    #[structopt(long = "workflows")]
+    target_workflows: bool,
     #[structopt(long = "days-ago")]
     days_ago: Option<i64>,
     #[structopt(long = "owner", default_value = "")]
@@ -77,6 +81,13 @@ async fn main() -> octocrab::Result<()> {
         info!("Target: labes");
         let runner = UserFetcher::new(octocrab);
         runner.run(wtr).await?;
+    } else if args.target_workflows {
+        info!("Target: workflows");
+        let handler = WorkflowsHandler::new(&octocrab, owner, name);
+        let result = handler.list().page(1u8).per_page(1u8).send().await?;
+        println!("Result: {:?}", result);
+        println!("Page: {:?}", result.next);
+        // runner.run(wtr).await?;
     } else {
         error!("No target specified");
     }

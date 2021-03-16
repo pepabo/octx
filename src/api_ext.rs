@@ -8,13 +8,6 @@ pub mod models {
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     #[non_exhaustive]
-    pub struct WorkFlows {
-        pub total_count: u64,
-        pub workflows: Vec<WorkFlow>,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    #[non_exhaustive]
     pub struct WorkFlow {
         pub id: i64,
         pub node_id: String,
@@ -84,7 +77,7 @@ impl<'octo, 'b> ListWorkflowsBuilder<'octo, 'b> {
         self
     }
 
-    pub async fn send(self) -> Result<Page<models::WorkFlows>> {
+    pub async fn send(self) -> Result<Page<models::WorkFlow>> {
         let url = format!(
             "repos/{owner}/{repo}/actions/workflows",
             owner = self.handler.owner,
