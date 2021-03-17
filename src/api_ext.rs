@@ -107,10 +107,8 @@ impl<'octo> WorkflowsHandler<'octo> {
         ListRunsBuilder::new(self, None, workflow_id)
     }
 
-    pub fn list_jobs(&self, run_id: i64) -> ! {
-        todo!(
-            "Jobs: https://docs.github.com/en/rest/reference/actions#list-jobs-for-a-workflow-run"
-        )
+    pub fn list_jobs(&self, run_id: impl Into<i64>) -> ListJobsBuilder<'_, '_> {
+        ListJobsBuilder::new(&self, run_id.into())
     }
 }
 

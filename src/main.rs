@@ -35,6 +35,10 @@ struct Command {
     target_workflows: bool,
     #[structopt(long = "runs")]
     target_runs: bool,
+    #[structopt(long = "jobs")]
+    target_jobs: bool,
+    #[structopt(long = "denormalize-steps")]
+    denormalize_steps: bool,
     #[structopt(long = "days-ago")]
     days_ago: Option<i64>,
     #[structopt(long = "owner", default_value = "")]
@@ -43,6 +47,8 @@ struct Command {
     name: String,
     #[structopt(long = "workflow-file")]
     workflow_file: Option<String>,
+    #[structopt(long = "run-id")]
+    run_id: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -109,6 +115,16 @@ async fn main() -> octocrab::Result<(), Box<dyn std::error::Error>> {
         } else {
             let runner = WorkFlowFetcher::new(owner, name, None, octocrab);
             runner.run_for_all_run(wtr).await?;
+        }
+    } else if args.target_jobs {
+        info!("Target: jobs");
+        if let Some(run_id) = args.run_id {
+            let runner = WorkFlowFetcher::new(owner, name, None, octocrab);
+            runner
+                .run_for_job(run_id, args.denormalize_steps, wtr)
+                .await?;
+        } else {
+            todo!("Fetch allof jobs...")
         }
     } else {
         error!("No target specified");

@@ -293,4 +293,57 @@ impl WorkFlowFetcher {
 
         Ok(())
     }
+
+    pub async fn run_for_job<T: std::io::Write>(
+        &self,
+        run_id: impl Into<i64>,
+        denormalize_steps: bool,
+        mut wtr: Writer<T>,
+    ) -> octocrab::Result<()> {
+        let handler = WorkflowsHandler::new(&self.octocrab, &self.owner, &self.name);
+        let mut page = handler
+            .list_jobs(run_id.into())
+            .per_page(100)
+            .send()
+            .await?;
+
+        let mut jobs: Vec<Job> = page.take_items();
+        if denormalize_steps {
+            for job in jobs.drain(..) {
+                let steps: Vec<JobStepRec> = job.into();
+                for mut step in steps.into_iter() {
+                    step.sdc_repository = self.reponame();
+                    wtr.serialize(&step).expect("Serialize failed");
+                }
+            }
+            while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
+                jobs.extend(newpage.take_items());
+                for job in jobs.drain(..) {
+                    let steps: Vec<JobStepRec> = job.into();
+                    for mut step in steps.into_iter() {
+                        step.sdc_repository = self.reponame();
+                        wtr.serialize(&step).expect("Serialize failed");
+                    }
+                }
+                page = newpage;
+            }
+        } else {
+            for job in jobs.drain(..) {
+                let mut job: JobRec = job.into();
+                job.sdc_repository = self.reponame();
+                wtr.serialize(&job).expect("Serialize failed");
+            }
+            while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
+                jobs.extend(newpage.take_items());
+                for job in jobs.drain(..) {
+                    let mut job: JobRec = job.into();
+                    job.sdc_repository = self.reponame();
+                    wtr.serialize(&job).expect("Serialize failed");
+                }
+                page = newpage;
+            }
+        }
+
+        Ok(())
+    }
 }
