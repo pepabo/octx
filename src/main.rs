@@ -43,6 +43,16 @@ struct Command {
     workflow_file: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+struct OptionInvalid(String);
+impl std::fmt::Display for OptionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "OptionErro: {}", self.0)
+    }
+}
+
+impl std::error::Error for OptionError {}
+
 #[derive(Deserialize, Debug)]
 struct Env {
     github_api_token: String,
@@ -50,7 +60,7 @@ struct Env {
 }
 
 #[tokio::main]
-async fn main() -> octocrab::Result<()> {
+async fn main() -> octocrab::Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let config: Env = envy::from_env()
         .context("while reading from environment")
@@ -96,7 +106,10 @@ async fn main() -> octocrab::Result<()> {
         info!("Target: runs");
         let handler = WorkflowsHandler::new(&octocrab, owner, name);
         let result = handler
-            .list_runs(args.workflow_file)
+            .list_runs(
+                args.workflow_file
+                    .ok_or(OptionInvalid("--workflow-file should be set".to_string()))?,
+            )
             .per_page(50)
             .send()
             .await?;
