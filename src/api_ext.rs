@@ -33,6 +33,8 @@ pub mod models {
         pub run_number: i64,
         pub event: String,  // TODO: to_enum
         pub status: String, // TODO: to_enum
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub conclusion: Option<String>,
         pub created_at: DateTime,
         pub updated_at: DateTime,
         pub url: Url,

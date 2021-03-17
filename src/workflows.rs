@@ -32,6 +32,7 @@ pub struct RunRec {
     pub run_number: i64,
     pub event: String,  // TODO: to_enum
     pub status: String, // TODO: to_enum
+    pub conclusion: Option<String>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
     pub url: Url,
@@ -70,6 +71,7 @@ impl From<Run> for RunRec {
             run_number: from.run_number,
             event: from.event,
             status: from.status,
+            conclusion: from.conclusion,
             created_at: from.created_at,
             updated_at: from.updated_at,
             url: from.url,
@@ -154,6 +156,37 @@ impl WorkFlowFetcher {
                 wtr.serialize(&run).expect("Serialize failed");
             }
             page = newpage;
+        }
+
+        Ok(())
+    }
+
+    pub async fn run_for_all_run<T: std::io::Write>(
+        &self,
+        mut wtr: Writer<T>,
+    ) -> octocrab::Result<()> {
+        let handler = WorkflowsHandler::new(&self.octocrab, &self.owner, &self.name);
+        let mut page = handler.list().per_page(100).send().await?;
+        let mut workflows: Vec<i64> = page.take_items().into_iter().map(|item| item.id).collect();
+
+        for wfid in workflows.into_iter() {
+            let mut page = handler.list_runs_by_id(wfid).per_page(100).send().await?;
+
+            let mut runs: Vec<Run> = page.take_items();
+            for run in runs.drain(..) {
+                let mut run: RunRec = run.into();
+                run.sdc_repository = self.reponame();
+                wtr.serialize(&run).expect("Serialize failed");
+            }
+            while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
+                runs.extend(newpage.take_items());
+                for run in runs.drain(..) {
+                    let mut run: RunRec = run.into();
+                    run.sdc_repository = self.reponame();
+                    wtr.serialize(&run).expect("Serialize failed");
+                }
+                page = newpage;
+            }
         }
 
         Ok(())
