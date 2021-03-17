@@ -150,7 +150,7 @@ impl<'octo, 'b> ListRunsBuilder<'octo, 'b> {
         self
     }
 
-    pub async fn send(self) -> Result<Page<models::WorkFlow>> {
+    pub async fn send(self) -> Result<Page<models::Run>> {
         let workflow_id = if let Some(file) = self.workflow_file.as_ref() {
             file.to_string()
         } else {

@@ -31,12 +31,16 @@ struct Command {
     target_users: bool,
     #[structopt(long = "workflows")]
     target_workflows: bool,
+    #[structopt(long = "runs")]
+    target_runs: bool,
     #[structopt(long = "days-ago")]
     days_ago: Option<i64>,
     #[structopt(long = "owner", default_value = "")]
     owner: String,
     #[structopt(long = "name", default_value = "")]
     name: String,
+    #[structopt(long = "workflow-file")]
+    workflow_file: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -84,7 +88,18 @@ async fn main() -> octocrab::Result<()> {
     } else if args.target_workflows {
         info!("Target: workflows");
         let handler = WorkflowsHandler::new(&octocrab, owner, name);
-        let result = handler.list().page(1u8).per_page(1u8).send().await?;
+        let result = handler.list().per_page(50).send().await?;
+        println!("Result: {:?}", result);
+        println!("Page: {:?}", result.next);
+        // runner.run(wtr).await?;
+    } else if args.target_runs {
+        info!("Target: runs");
+        let handler = WorkflowsHandler::new(&octocrab, owner, name);
+        let result = handler
+            .list_runs(args.workflow_file)
+            .per_page(50)
+            .send()
+            .await?;
         println!("Result: {:?}", result);
         println!("Page: {:?}", result.next);
         // runner.run(wtr).await?;
