@@ -13,6 +13,7 @@ octocrab = { path = "../../XAMPPRocky/octocrab", default-features = false }
 tokio = { version = "1.0", default-features = false, features = ["macros", "rt-multi-thread", "time"] }
 # graphql_client = "0.9"
 serde = { version = "1.0.106", features = ["derive"] }
+serde_json = { version = "1.0.62" }
 reqwest = { version = "0.11.0", default-features = false, features = ["rustls-tls", "json"] }
 #prettytable-rs = "^0.7"
 structopt = "^0.3"

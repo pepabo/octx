@@ -650,6 +650,7 @@ dependencies = [
  "octocrab",
  "reqwest",
  "serde",
+ "serde_json",
  "structopt",
  "tokio",
  "url 0.5.10",

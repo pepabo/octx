@@ -42,6 +42,42 @@ pub mod models {
         // TODO: other attrs
         // ref: https://docs.github.com/en/rest/reference/actions#list-workflow-runs
     }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    #[non_exhaustive]
+    pub struct Job {
+        pub id: i64,
+        pub run_id: i64,
+        pub node_id: String,
+        pub head_sha: String,
+        pub status: String, // TODO: to_enum
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub conclusion: Option<String>,
+        pub started_at: DateTime,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub completed_at: Option<DateTime>,
+        pub name: String,
+        pub url: Url,
+        pub html_url: Url,
+        pub run_url: Url,
+        pub check_run_url: Url,
+        pub steps: Vec<Step>,
+        // TODO: other attrs
+        // ref: https://docs.github.com/en/rest/reference/actions#list-workflow-runs
+    }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    #[non_exhaustive]
+    pub struct Step {
+        pub name: String,
+        pub status: String, // TODO: to_enum
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub conclusion: Option<String>,
+        pub number: i64,
+        pub started_at: DateTime,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub completed_at: Option<DateTime>,
+    }
 }
 
 pub struct WorkflowsHandler<'octo> {
@@ -173,9 +209,53 @@ impl<'octo, 'b> ListRunsBuilder<'octo, 'b> {
     }
 }
 
-pub struct ListJobsBuilder<'octo> {
-    crab: &'octo Octocrab,
-    owner: String,
-    repo: String,
+#[derive(Serialize)]
+pub struct ListJobsBuilder<'octo, 'b> {
+    #[serde(skip)]
+    handler: &'b WorkflowsHandler<'octo>,
+    #[serde(skip)]
     run_id: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    per_page: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filter: Option<String>,
+}
+
+impl<'octo, 'b> ListJobsBuilder<'octo, 'b> {
+    pub(crate) fn new(handler: &'b WorkflowsHandler<'octo>, run_id: i64) -> Self {
+        Self {
+            handler,
+            run_id,
+            per_page: None,
+            page: None,
+            filter: None,
+        }
+    }
+
+    pub fn per_page(mut self, per_page: impl Into<u8>) -> Self {
+        self.per_page = Some(per_page.into());
+        self
+    }
+
+    pub fn page(mut self, page: impl Into<u32>) -> Self {
+        self.page = Some(page.into());
+        self
+    }
+
+    pub fn filter(mut self, filter: impl Into<String>) -> Self {
+        self.filter = Some(filter.into());
+        self
+    }
+
+    pub async fn send(self) -> Result<Page<models::Job>> {
+        let url = format!(
+            "repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
+            owner = self.handler.owner,
+            repo = self.handler.repo,
+            run_id = self.run_id,
+        );
+        self.handler.crab.get(url, Some(&self)).await
+    }
 }
