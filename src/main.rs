@@ -105,26 +105,24 @@ async fn main() -> octocrab::Result<(), Box<dyn std::error::Error>> {
         runner.run(wtr).await?;
     } else if args.target_workflows {
         info!("Target: workflows");
-        let runner = WorkFlowFetcher::new(owner, name, None, octocrab);
-        runner.run(wtr).await?;
+        let mut runner = WorkFlowFetcher::new(owner, name, None, octocrab, wtr);
+        runner.run().await?;
     } else if args.target_runs {
         info!("Target: runs");
         if let Some(worklow_id) = args.workflow_file {
-            let runner = WorkFlowFetcher::new(owner, name, None, octocrab);
-            runner.run_for_run(worklow_id, wtr).await?;
+            let mut runner = WorkFlowFetcher::new(owner, name, None, octocrab, wtr);
+            runner.run_for_run(worklow_id).await?;
         } else {
-            let runner = WorkFlowFetcher::new(owner, name, None, octocrab);
-            runner.run_for_all_run(wtr).await?;
+            let mut runner = WorkFlowFetcher::new(owner, name, None, octocrab, wtr);
+            runner.run_for_all_run().await?;
         }
     } else if args.target_jobs {
         info!("Target: jobs");
+        let mut runner = WorkFlowFetcher::new(owner, name, None, octocrab, wtr);
         if let Some(run_id) = args.run_id {
-            let runner = WorkFlowFetcher::new(owner, name, None, octocrab);
-            runner
-                .run_for_job(run_id, args.denormalize_steps, wtr)
-                .await?;
+            runner.run_for_job(run_id, args.denormalize_steps).await?;
         } else {
-            todo!("Fetch allof jobs...")
+            runner.run_for_all_job(args.denormalize_steps).await?;
         }
     } else {
         error!("No target specified");

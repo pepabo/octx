@@ -6,6 +6,8 @@ type DateTime = chrono::DateTime<chrono::Utc>;
 use crate::api_ext::models::*;
 use crate::api_ext::*;
 
+use std::ops::Deref;
+
 #[derive(Serialize, Debug)]
 pub struct WorkFlowRec {
     pub id: i64,
@@ -183,25 +185,28 @@ impl From<Job> for Vec<JobStepRec> {
     }
 }
 
-pub struct WorkFlowFetcher {
+pub struct WorkFlowFetcher<T: std::io::Write> {
     owner: String,
     name: String,
     workflow_id: Option<String>,
     octocrab: octocrab::Octocrab,
+    writer: Writer<T>,
 }
 
-impl WorkFlowFetcher {
+impl<T: std::io::Write> WorkFlowFetcher<T> {
     pub fn new(
         owner: String,
         name: String,
         workflow_id: Option<String>,
         octocrab: octocrab::Octocrab,
+        writer: Writer<T>,
     ) -> Self {
         Self {
             owner,
             name,
             workflow_id,
             octocrab,
+            writer,
         }
     }
 
@@ -209,7 +214,7 @@ impl WorkFlowFetcher {
         format!("{}/{}", self.owner, self.name)
     }
 
-    pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
+    pub async fn run(&mut self) -> octocrab::Result<()> {
         let handler = WorkflowsHandler::new(&self.octocrab, &self.owner, &self.name);
         let mut page = handler.list().per_page(100).send().await?;
 
@@ -217,14 +222,14 @@ impl WorkFlowFetcher {
         for workflow in workflows.drain(..) {
             let mut workflow: WorkFlowRec = workflow.into();
             workflow.sdc_repository = self.reponame();
-            wtr.serialize(&workflow).expect("Serialize failed");
+            self.writer.serialize(&workflow).expect("Serialize failed");
         }
         while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
             workflows.extend(newpage.take_items());
             for workflow in workflows.drain(..) {
                 let mut workflow: WorkFlowRec = workflow.into();
                 workflow.sdc_repository = self.reponame();
-                wtr.serialize(&workflow).expect("Serialize failed");
+                self.writer.serialize(&workflow).expect("Serialize failed");
             }
             page = newpage;
         }
@@ -232,11 +237,7 @@ impl WorkFlowFetcher {
         Ok(())
     }
 
-    pub async fn run_for_run<T: std::io::Write>(
-        &self,
-        workflow_id: impl Into<String>,
-        mut wtr: Writer<T>,
-    ) -> octocrab::Result<()> {
+    pub async fn run_for_run(&mut self, workflow_id: impl Into<String>) -> octocrab::Result<()> {
         let handler = WorkflowsHandler::new(&self.octocrab, &self.owner, &self.name);
         let mut page = handler
             .list_runs(workflow_id.into())
@@ -248,14 +249,14 @@ impl WorkFlowFetcher {
         for run in runs.drain(..) {
             let mut run: RunRec = run.into();
             run.sdc_repository = self.reponame();
-            wtr.serialize(&run).expect("Serialize failed");
+            self.writer.serialize(&run).expect("Serialize failed");
         }
         while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
             runs.extend(newpage.take_items());
             for run in runs.drain(..) {
                 let mut run: RunRec = run.into();
                 run.sdc_repository = self.reponame();
-                wtr.serialize(&run).expect("Serialize failed");
+                self.writer.serialize(&run).expect("Serialize failed");
             }
             page = newpage;
         }
@@ -263,10 +264,7 @@ impl WorkFlowFetcher {
         Ok(())
     }
 
-    pub async fn run_for_all_run<T: std::io::Write>(
-        &self,
-        mut wtr: Writer<T>,
-    ) -> octocrab::Result<()> {
+    pub async fn run_for_all_run(&mut self) -> octocrab::Result<()> {
         let handler = WorkflowsHandler::new(&self.octocrab, &self.owner, &self.name);
         let mut page = handler.list().per_page(100).send().await?;
         let workflows: Vec<i64> = page.take_items().into_iter().map(|item| item.id).collect();
@@ -278,14 +276,14 @@ impl WorkFlowFetcher {
             for run in runs.drain(..) {
                 let mut run: RunRec = run.into();
                 run.sdc_repository = self.reponame();
-                wtr.serialize(&run).expect("Serialize failed");
+                self.writer.serialize(&run).expect("Serialize failed");
             }
             while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
                 runs.extend(newpage.take_items());
                 for run in runs.drain(..) {
                     let mut run: RunRec = run.into();
                     run.sdc_repository = self.reponame();
-                    wtr.serialize(&run).expect("Serialize failed");
+                    self.writer.serialize(&run).expect("Serialize failed");
                 }
                 page = newpage;
             }
@@ -294,11 +292,10 @@ impl WorkFlowFetcher {
         Ok(())
     }
 
-    pub async fn run_for_job<T: std::io::Write>(
-        &self,
+    pub async fn run_for_job(
+        &mut self,
         run_id: impl Into<i64>,
         denormalize_steps: bool,
-        mut wtr: Writer<T>,
     ) -> octocrab::Result<()> {
         let handler = WorkflowsHandler::new(&self.octocrab, &self.owner, &self.name);
         let mut page = handler
@@ -313,7 +310,7 @@ impl WorkFlowFetcher {
                 let steps: Vec<JobStepRec> = job.into();
                 for mut step in steps.into_iter() {
                     step.sdc_repository = self.reponame();
-                    wtr.serialize(&step).expect("Serialize failed");
+                    self.writer.serialize(&step).expect("Serialize failed");
                 }
             }
             while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
@@ -322,7 +319,7 @@ impl WorkFlowFetcher {
                     let steps: Vec<JobStepRec> = job.into();
                     for mut step in steps.into_iter() {
                         step.sdc_repository = self.reponame();
-                        wtr.serialize(&step).expect("Serialize failed");
+                        self.writer.serialize(&step).expect("Serialize failed");
                     }
                 }
                 page = newpage;
@@ -331,17 +328,46 @@ impl WorkFlowFetcher {
             for job in jobs.drain(..) {
                 let mut job: JobRec = job.into();
                 job.sdc_repository = self.reponame();
-                wtr.serialize(&job).expect("Serialize failed");
+                self.writer.serialize(&job).expect("Serialize failed");
             }
             while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
                 jobs.extend(newpage.take_items());
                 for job in jobs.drain(..) {
                     let mut job: JobRec = job.into();
                     job.sdc_repository = self.reponame();
-                    wtr.serialize(&job).expect("Serialize failed");
+                    self.writer.serialize(&job).expect("Serialize failed");
                 }
                 page = newpage;
             }
+        }
+
+        Ok(())
+    }
+
+    pub async fn run_for_all_job(&mut self, denormalize_steps: bool) -> octocrab::Result<()> {
+        let handler = WorkflowsHandler::new(&self.octocrab, &self.owner, &self.name);
+        let mut page = handler.list().per_page(100).send().await?;
+        let workflows: Vec<i64> = page.take_items().into_iter().map(|item| item.id).collect();
+
+        let mut runs: Vec<i64> = Vec::new();
+        for wfid in workflows.into_iter() {
+            let mut page = handler.list_runs_by_id(wfid).per_page(100).send().await?;
+
+            let items: Vec<Run> = page.take_items();
+            for run in items.into_iter() {
+                runs.push(run.id);
+            }
+            while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
+                let items: Vec<Run> = newpage.take_items();
+                for run in items.into_iter() {
+                    runs.push(run.id);
+                }
+                page = newpage;
+            }
+        }
+
+        for run_id in runs.into_iter() {
+            self.run_for_job(run_id, denormalize_steps).await?
         }
 
         Ok(())
