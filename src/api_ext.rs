@@ -49,8 +49,12 @@ pub struct WorkflowsHandler<'octo> {
 }
 
 impl<'octo> WorkflowsHandler<'octo> {
-    pub fn new(crab: &'octo Octocrab, owner: String, repo: String) -> Self {
-        Self { crab, owner, repo }
+    pub fn new(crab: &'octo Octocrab, owner: impl Into<String>, repo: impl Into<String>) -> Self {
+        Self {
+            crab,
+            owner: owner.into(),
+            repo: repo.into(),
+        }
     }
 
     pub fn list(&self) -> ListWorkflowsBuilder<'_, '_> {

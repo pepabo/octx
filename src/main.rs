@@ -15,6 +15,8 @@ mod labels;
 use labels::LabelFetcher;
 mod users;
 use users::UserFetcher;
+mod workflows;
+use workflows::WorkFlowFetcher;
 mod api_ext;
 use api_ext::*;
 
@@ -45,13 +47,13 @@ struct Command {
 
 #[derive(Debug, Clone)]
 struct OptionInvalid(String);
-impl std::fmt::Display for OptionError {
+impl std::fmt::Display for OptionInvalid {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "OptionErro: {}", self.0)
     }
 }
 
-impl std::error::Error for OptionError {}
+impl std::error::Error for OptionInvalid {}
 
 #[derive(Deserialize, Debug)]
 struct Env {
@@ -97,11 +99,8 @@ async fn main() -> octocrab::Result<(), Box<dyn std::error::Error>> {
         runner.run(wtr).await?;
     } else if args.target_workflows {
         info!("Target: workflows");
-        let handler = WorkflowsHandler::new(&octocrab, owner, name);
-        let result = handler.list().per_page(50).send().await?;
-        println!("Result: {:?}", result);
-        println!("Page: {:?}", result.next);
-        // runner.run(wtr).await?;
+        let runner = WorkFlowFetcher::new(owner, name, None, octocrab);
+        runner.run(wtr).await?;
     } else if args.target_runs {
         info!("Target: runs");
         let handler = WorkflowsHandler::new(&octocrab, owner, name);
