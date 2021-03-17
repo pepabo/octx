@@ -6,8 +6,6 @@ type DateTime = chrono::DateTime<chrono::Utc>;
 use crate::api_ext::models::*;
 use crate::api_ext::*;
 
-use std::ops::Deref;
-
 #[derive(Serialize, Debug)]
 pub struct WorkFlowRec {
     pub id: i64,
