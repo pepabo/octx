@@ -128,7 +128,34 @@ impl WorkFlowFetcher {
         Ok(())
     }
 
-    pub async fn run_for_run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
+    pub async fn run_for_run<T: std::io::Write>(
+        &self,
+        workflow_id: impl Into<String>,
+        mut wtr: Writer<T>,
+    ) -> octocrab::Result<()> {
+        let handler = WorkflowsHandler::new(&self.octocrab, &self.owner, &self.name);
+        let mut page = handler
+            .list_runs(workflow_id.into())
+            .per_page(100)
+            .send()
+            .await?;
+
+        let mut runs: Vec<Run> = page.take_items();
+        for run in runs.drain(..) {
+            let mut run: RunRec = run.into();
+            run.sdc_repository = self.reponame();
+            wtr.serialize(&run).expect("Serialize failed");
+        }
+        while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
+            runs.extend(newpage.take_items());
+            for run in runs.drain(..) {
+                let mut run: RunRec = run.into();
+                run.sdc_repository = self.reponame();
+                wtr.serialize(&run).expect("Serialize failed");
+            }
+            page = newpage;
+        }
+
         Ok(())
     }
 }

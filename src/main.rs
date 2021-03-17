@@ -103,18 +103,11 @@ async fn main() -> octocrab::Result<(), Box<dyn std::error::Error>> {
         runner.run(wtr).await?;
     } else if args.target_runs {
         info!("Target: runs");
-        let handler = WorkflowsHandler::new(&octocrab, owner, name);
-        let result = handler
-            .list_runs(
-                args.workflow_file
-                    .ok_or(OptionInvalid("--workflow-file should be set".to_string()))?,
-            )
-            .per_page(50)
-            .send()
-            .await?;
-        println!("Result: {:?}", result);
-        println!("Page: {:?}", result.next);
-        // runner.run(wtr).await?;
+        let worklow_id = args
+            .workflow_file
+            .ok_or(OptionInvalid("--workflow-file should be set".to_string()))?;
+        let runner = WorkFlowFetcher::new(owner, name, None, octocrab);
+        runner.run_for_run(worklow_id, wtr).await?;
     } else {
         error!("No target specified");
     }
