@@ -2,6 +2,11 @@
 name = "octx"
 version = "0.2.1"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
+repository = "https://github.com/udzura/octx"
+keywords = ["github", "cli", "etl"]
+license-file = "LICENSE"
+readme = "README.md"
+description = "GitHub query & extracter (Enterprise ready)"
 edition = "2018"
 
 [dependencies]
