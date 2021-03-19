@@ -15,12 +15,16 @@ mod labels;
 use labels::LabelFetcher;
 mod users;
 use users::UserFetcher;
+mod events;
+use events::IssueEventFetcher;
 
 #[derive(StructOpt)]
 #[structopt(author, about)]
 struct Command {
     #[structopt(long = "issues")]
     target_issues: bool,
+    #[structopt(long = "events")]
+    target_events: bool,
     #[structopt(long = "comments")]
     target_comments: bool,
     #[structopt(long = "labels")]
@@ -63,6 +67,10 @@ async fn main() -> octocrab::Result<()> {
     if args.target_issues {
         info!("Target: issues");
         let runner = IssueFetcher::new(owner, name, octocrab);
+        runner.run(wtr).await?;
+    } else if args.target_events {
+        info!("Target: events");
+        let runner = IssueEventFetcher::new(owner, name, octocrab);
         runner.run(wtr).await?;
     } else if args.target_comments {
         info!("Target: comments");
