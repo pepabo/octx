@@ -1,5 +1,5 @@
 use csv::Writer;
-use octocrab::models::{issues, User};
+use octocrab::models::{issues, Milestone, ProjectCard, User};
 use octocrab::Page;
 use reqwest::Url;
 use serde::*;
@@ -7,6 +7,7 @@ type DateTime = chrono::DateTime<chrono::Utc>;
 
 // Copied from octocrab::models::IssueEvent
 // There are more events than Event enum defined
+// Detailed: https://docs.github.com/en/developers/webhooks-and-events/issue-event-types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct IssueEvent {
@@ -17,6 +18,21 @@ pub struct IssueEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     pub actor: User,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assigner: Option<User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub review_requester: Option<User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requested_reviewer: Option<User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<Label>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub milestone: Option<Milestone>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_card: Option<ProjectCard>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub event: Option<String>, // Used instead of Event
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit_id: Option<String>,
@@ -26,12 +42,26 @@ pub struct IssueEvent {
     pub issue: issues::Issue,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct Label {
+    pub name: String,
+    pub color: String,
+}
+
 #[derive(Serialize, Debug)]
 struct EventRec {
     pub id: Option<i64>,
     pub node_id: Option<String>,
     pub url: Option<String>,
     pub actor_id: i64,
+    pub assignee_id: Option<i64>,
+    pub assigner_id: Option<i64>,
+    pub review_requester_id: Option<i64>,
+    pub requested_reviewer_id: Option<i64>,
+    pub label: Option<String>,
+    pub milestone_title: Option<String>,
+    pub project_card_url: Option<Url>,
     pub event: Option<String>, // Used instead of Event
     pub commit_id: Option<String>,
     pub commit_url: Option<Url>,
@@ -49,6 +79,13 @@ impl From<IssueEvent> for EventRec {
             url: from.url,
             actor_id: from.actor.id,
             event: from.event,
+            assignee_id: from.assignee.map(|u| u.id),
+            assigner_id: from.assigner.map(|u| u.id),
+            review_requester_id: from.review_requester.map(|u| u.id),
+            requested_reviewer_id: from.requested_reviewer.map(|u| u.id),
+            label: from.label.map(|l| l.name),
+            milestone_title: from.milestone.map(|m| m.title),
+            project_card_url: from.project_card.map(|p| p.url),
             commit_id: from.commit_id,
             commit_url: from.commit_url,
             created_at: from.created_at,
