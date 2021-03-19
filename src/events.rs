@@ -1,5 +1,5 @@
 use csv::Writer;
-use octocrab::models::{Label, Milestone, ProjectCard, User};
+use octocrab::models::{issues, User};
 use octocrab::Page;
 use reqwest::Url;
 use serde::*;
@@ -7,7 +7,7 @@ type DateTime = chrono::DateTime<chrono::Utc>;
 
 // Copied from octocrab::models::IssueEvent
 // There are more events than Event enum defined
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct IssueEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -17,25 +17,13 @@ pub struct IssueEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     pub actor: User,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assignee: Option<User>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assignees: Option<Vec<User>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assigner: Option<User>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<Vec<Label>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub milestone: Option<Milestone>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub project_card: Option<ProjectCard>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub event: Option<String>, // Used instead of Event
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit_url: Option<Url>,
     pub created_at: DateTime,
+    pub issue: issues::Issue,
 }
 
 #[derive(Serialize, Debug)]
@@ -44,16 +32,11 @@ struct EventRec {
     pub node_id: Option<String>,
     pub url: Option<String>,
     pub actor_id: i64,
-    pub assignee_id: Option<i64>,
-    pub assignees: Option<String>,
-    pub assigner_id: Option<i64>,
-    pub labels: Option<String>,
-    pub milestone_name: Option<String>,
-    pub project_card_url: Option<Url>,
     pub event: Option<String>, // Used instead of Event
     pub commit_id: Option<String>,
     pub commit_url: Option<Url>,
     pub created_at: DateTime,
+    pub issue_id: i64,
 
     pub sdc_repository: String,
 }
@@ -65,28 +48,11 @@ impl From<IssueEvent> for EventRec {
             node_id: from.node_id,
             url: from.url,
             actor_id: from.actor.id,
-            assignee_id: from.assignee.map(|u| u.id),
-            assignees: from.assignees.map(|us| {
-                us.iter()
-                    .map(|u| u.login.clone())
-                    .collect::<Vec<String>>()
-                    .join(",")
-            }),
-            assigner_id: from.assigner.map(|u| u.id),
-            labels: from.labels.map(|ls| {
-                ls.iter()
-                    .map(|l| l.name.clone())
-                    .collect::<Vec<String>>()
-                    .join(",")
-            }),
-            milestone_name: from
-                .milestone
-                .map(|m| m.description.unwrap_or("".to_string())),
-            project_card_url: from.project_card.map(|p| p.url),
             event: from.event,
             commit_id: from.commit_id,
             commit_url: from.commit_url,
             created_at: from.created_at,
+            issue_id: from.issue.id,
 
             sdc_repository: String::default(),
         }
@@ -133,12 +99,20 @@ impl IssueEventFetcher {
 
         let mut page: Page<IssueEvent> = self.octocrab.get(route, Some(&handler)).await?;
 
-        let events: Vec<IssueEvent> = page.take_items();
-        println!("{:?}", events);
+        let mut events: Vec<IssueEvent> = page.take_items();
+        for event in events.drain(..) {
+            let mut event: EventRec = event.into();
+            event.sdc_repository = self.reponame();
+            wtr.serialize(&event).expect("Serialize failed");
+        }
 
         while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
-            let events: Vec<IssueEvent> = newpage.take_items();
-            println!("{:?}", events);
+            let mut events: Vec<IssueEvent> = newpage.take_items();
+            for event in events.drain(..) {
+                let mut event: EventRec = event.into();
+                event.sdc_repository = self.reponame();
+                wtr.serialize(&event).expect("Serialize failed");
+            }
             page = newpage;
         }
 
