@@ -124,33 +124,22 @@ impl IssueEventFetcher {
     }
 
     pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
-        let handler = EventHandler {
-            per_page: Some(100u8),
-            page: None,
-        };
         let route = format!(
-            "repos/{owner}/{repo}/issues/events",
+            "repos/{owner}/{repo}/issues/events?per_page={per_page}",
             owner = &self.owner,
             repo = &self.name,
+            per_page = "100"
         );
+        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
 
-        let mut page: Page<IssueEvent> = self.octocrab.get(route, Some(&handler)).await?;
-
-        let mut events: Vec<IssueEvent> = page.take_items();
-        for event in events.drain(..) {
-            let mut event: EventRec = event.into();
-            event.sdc_repository = self.reponame();
-            wtr.serialize(&event).expect("Serialize failed");
-        }
-
-        while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
-            let mut events: Vec<IssueEvent> = newpage.take_items();
+        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+            let mut events: Vec<IssueEvent> = page.take_items();
             for event in events.drain(..) {
                 let mut event: EventRec = event.into();
                 event.sdc_repository = self.reponame();
                 wtr.serialize(&event).expect("Serialize failed");
             }
-            page = newpage;
+            next = page.next;
         }
 
         Ok(())
