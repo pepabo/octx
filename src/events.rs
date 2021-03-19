@@ -1,27 +1,52 @@
 use csv::Writer;
-// use octocrab::models::events::*;
+use octocrab::models::{Label, Milestone, ProjectCard, User};
 use octocrab::Page;
 use reqwest::Url;
 use serde::*;
 type DateTime = chrono::DateTime<chrono::Utc>;
 
-/// A GitHub event.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+// Copied from octocrab::models::IssueEvent
+// There are more events than Event enum defined
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
-struct Event {
-    pub id: i64,
-    pub event: String,
+pub struct IssueEvent {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub node_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    pub actor: User,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignees: Option<Vec<User>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assigner: Option<User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub labels: Option<Vec<Label>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub milestone: Option<Milestone>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_card: Option<ProjectCard>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event: Option<String>, // Used instead of Event
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commit_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commit_url: Option<String>,
+    pub created_at: DateTime,
 }
 
 #[derive(Serialize, Debug)]
 struct EventRec {
-    pub id: i64,
+    pub id: Option<i64>,
 
     pub sdc_repository: String,
 }
 
-impl From<Event> for EventRec {
-    fn from(from: Event) -> Self {
+impl From<IssueEvent> for EventRec {
+    fn from(from: IssueEvent) -> Self {
         Self {
             id: from.id,
 
@@ -68,13 +93,13 @@ impl IssueEventFetcher {
             repo = &self.name,
         );
 
-        let mut page: Page<Event> = self.octocrab.get(route, Some(&handler)).await?;
+        let mut page: Page<IssueEvent> = self.octocrab.get(route, Some(&handler)).await?;
 
-        let events: Vec<Event> = page.take_items();
+        let events: Vec<IssueEvent> = page.take_items();
         println!("{:?}", events);
 
         while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
-            let events: Vec<Event> = newpage.take_items();
+            let events: Vec<IssueEvent> = newpage.take_items();
             println!("{:?}", events);
             page = newpage;
         }
