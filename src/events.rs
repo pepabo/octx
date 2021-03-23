@@ -1,6 +1,5 @@
 use csv::Writer;
 use octocrab::models::{issues, Milestone, ProjectCard, User};
-use octocrab::Page;
 use reqwest::Url;
 use serde::*;
 type DateTime = chrono::DateTime<chrono::Utc>;
@@ -133,8 +132,8 @@ impl IssueEventFetcher {
         let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
 
         while let Some(mut page) = self.octocrab.get_page(&next).await? {
-            let mut events: Vec<IssueEvent> = page.take_items();
-            for event in events.drain(..) {
+            let events: Vec<IssueEvent> = page.take_items();
+            for event in events.into_iter() {
                 let mut event: EventRec = event.into();
                 event.sdc_repository = self.reponame();
                 wtr.serialize(&event).expect("Serialize failed");
