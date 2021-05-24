@@ -1,19 +1,12 @@
 use csv::Writer;
 use octocrab::models::User;
-use octocrab::Page;
 use reqwest::Url;
 use serde::*;
 
+use crate::Params;
+
 pub struct UserFetcher {
     octocrab: octocrab::Octocrab,
-}
-
-#[derive(Serialize)]
-struct UserHandler {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    per_page: Option<u8>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    page: Option<u32>,
 }
 
 #[derive(Serialize, Debug)]
@@ -69,24 +62,19 @@ impl UserFetcher {
     }
 
     pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
-        let handler = UserHandler {
-            per_page: Some(100u8),
-            page: None,
-        };
-        let mut page: Page<User> = self.octocrab.get("users", Some(&handler)).await?;
+        let mut param = Params::default();
+        param.per_page = 100u8.into();
 
-        let mut users: Vec<User> = page.take_items();
-        for user in users.drain(..) {
-            let user: UserRec = user.into();
-            wtr.serialize(&user).expect("Serialize failed");
-        }
-        while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
-            users.extend(newpage.take_items());
-            for user in users.drain(..) {
+        let route = format!("users?{query}", query = param.to_query());
+        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+
+        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+            let users: Vec<User> = page.take_items();
+            for user in users.into_iter() {
                 let user: UserRec = user.into();
                 wtr.serialize(&user).expect("Serialize failed");
             }
-            page = newpage;
+            next = page.next;
         }
 
         Ok(())

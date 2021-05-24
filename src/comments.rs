@@ -2,6 +2,8 @@ use csv::Writer;
 use octocrab::models::issues::*;
 use reqwest::Url;
 use serde::*;
+
+use crate::Params;
 type DateTime = chrono::DateTime<chrono::Utc>;
 
 #[derive(Serialize, Debug)]
@@ -63,28 +65,26 @@ impl CommentFetcher {
         since: Option<DateTime>,
         mut wtr: Writer<T>,
     ) -> octocrab::Result<()> {
-        let ibuilder = self.octocrab.issues(&self.owner, &self.name);
-        let mut builder = ibuilder.list_issue_comments().per_page(100);
-        if let Some(since) = since {
-            builder = builder.since(since);
-        }
+        let mut param = Params::default();
+        param.per_page = 100u8.into();
+        param.since = since;
 
-        let mut page = builder.send().await?;
+        let route = format!(
+            "repos/{owner}/{repo}/issues/comments?{query}",
+            owner = &self.owner,
+            repo = &self.name,
+            query = param.to_query(),
+        );
+        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
 
-        let mut comments: Vec<Comment> = page.take_items();
-        for comment in comments.drain(..) {
-            let mut comment: CommentRec = comment.into();
-            comment.sdc_repository = self.reponame();
-            wtr.serialize(&comment).expect("Serialize failed");
-        }
-        while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
-            comments.extend(newpage.take_items());
-            for comment in comments.drain(..) {
+        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+            let comments: Vec<Comment> = page.take_items();
+            for comment in comments.into_iter() {
                 let mut comment: CommentRec = comment.into();
                 comment.sdc_repository = self.reponame();
                 wtr.serialize(&comment).expect("Serialize failed");
             }
-            page = newpage;
+            next = page.next;
         }
 
         Ok(())

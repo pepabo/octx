@@ -125,9 +125,8 @@ impl IssueEventFetcher {
     }
 
     pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
-        let param = Params {
-            per_page: 100u8.into(),
-        };
+        let mut param = Params::default();
+        param.per_page = 100u8.into();
 
         let route = format!(
             "repos/{owner}/{repo}/issues/events?{query}",
