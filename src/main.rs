@@ -7,16 +7,11 @@ use structopt::StructOpt;
 
 use std::io;
 
-mod issues;
-use issues::IssueFetcher;
-mod comments;
-use comments::CommentFetcher;
-mod labels;
-use labels::LabelFetcher;
-mod users;
-use users::UserFetcher;
-mod events;
-use events::IssueEventFetcher;
+extern crate octx;
+use octx::{
+    comments::CommentFetcher, events::IssueEventFetcher, issues::IssueFetcher,
+    labels::LabelFetcher, users::UserFetcher,
+};
 
 #[derive(StructOpt)]
 #[structopt(author, about)]

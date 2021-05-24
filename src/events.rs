@@ -1,3 +1,5 @@
+use super::Params;
+
 use csv::Writer;
 use octocrab::models::{issues, Milestone, ProjectCard, User};
 use reqwest::Url;
@@ -123,11 +125,15 @@ impl IssueEventFetcher {
     }
 
     pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
+        let param = Params {
+            per_page: 100u8.into(),
+        };
+
         let route = format!(
-            "repos/{owner}/{repo}/issues/events?per_page={per_page}",
+            "repos/{owner}/{repo}/issues/events?{query}",
             owner = &self.owner,
             repo = &self.name,
-            per_page = "100"
+            query = param.to_query(),
         );
         let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
 

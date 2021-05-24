@@ -2,8 +2,9 @@ use csv::Writer;
 use octocrab::models::issues::*;
 use octocrab::params;
 use reqwest::Url;
-use serde::*;
 type DateTime = chrono::DateTime<chrono::Utc>;
+
+use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 struct IssueRec {
