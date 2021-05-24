@@ -52,3 +52,5 @@ pub trait LoopWriter: UrlConstructor {
         page.next
     }
 }
+
+pub trait Fetcher: LoopWriter {}

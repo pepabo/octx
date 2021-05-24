@@ -8,7 +8,6 @@ use structopt::StructOpt;
 use std::io;
 
 extern crate octx;
-use octx::UrlConstructor;
 use octx::{
     comments::CommentFetcher, events::IssueEventFetcher, issues::IssueFetcher,
     labels::LabelFetcher, users::UserFetcher,
@@ -76,8 +75,7 @@ async fn main() -> octocrab::Result<()> {
     } else if args.target_labels {
         info!("Target: labes");
         let runner = LabelFetcher::new(owner, name, octocrab);
-        let url = runner.entrypoint();
-        runner.fetch(url, wtr).await?;
+        runner.fetch(wtr).await?;
     } else if args.target_users {
         info!("Target: labes");
         let runner = UserFetcher::new(octocrab);

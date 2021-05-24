@@ -1,4 +1,3 @@
-use csv::Writer;
 use octocrab::models::*;
 use reqwest::Url;
 use serde::*;
@@ -84,14 +83,10 @@ impl LoopWriter for LabelFetcher {
 }
 
 impl LabelFetcher {
-    pub async fn fetch<T: std::io::Write>(
-        &self,
-        url: Option<reqwest::Url>,
-        mut wtr: csv::Writer<T>,
-    ) -> octocrab::Result<()> {
-        let mut next: Option<Url> = url;
+    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+        let mut next: Option<Url> = self.entrypoint();
 
-        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+        while let Some(page) = self.octocrab.get_page(&next).await? {
             next = self.write_and_continue(page, &mut wtr);
         }
 
