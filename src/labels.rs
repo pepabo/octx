@@ -3,7 +3,10 @@ use octocrab::models::*;
 use reqwest::Url;
 use serde::*;
 
+use crate::LoopWriter;
 use crate::Params;
+use crate::RepositryAware;
+use crate::UrlConstructor;
 
 #[derive(Serialize, Debug)]
 pub struct LabelRec {
@@ -16,6 +19,12 @@ pub struct LabelRec {
     pub default: bool,
 
     pub sdc_repository: String,
+}
+
+impl RepositryAware for LabelRec {
+    fn set_repository(&mut self, name: String) {
+        self.sdc_repository = name;
+    }
 }
 
 impl From<Label> for LabelRec {
@@ -48,12 +57,14 @@ impl LabelFetcher {
             octocrab,
         }
     }
+}
 
-    pub fn reponame(&self) -> String {
+impl UrlConstructor for LabelFetcher {
+    fn reponame(&self) -> String {
         format!("{}/{}", self.owner, self.name)
     }
 
-    pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
+    fn entrypoint(&self) -> Option<Url> {
         let mut param = Params::default();
         param.per_page = 100u8.into();
 
@@ -63,16 +74,25 @@ impl LabelFetcher {
             repo = &self.name,
             query = param.to_query(),
         );
-        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+        self.octocrab.absolute_url(route).ok()
+    }
+}
+
+impl LoopWriter for LabelFetcher {
+    type Model = Label;
+    type Record = LabelRec;
+}
+
+impl LabelFetcher {
+    pub async fn fetch<T: std::io::Write>(
+        &self,
+        url: Option<reqwest::Url>,
+        mut wtr: csv::Writer<T>,
+    ) -> octocrab::Result<()> {
+        let mut next: Option<Url> = url;
 
         while let Some(mut page) = self.octocrab.get_page(&next).await? {
-            let labels: Vec<Label> = page.take_items();
-            for label in labels.into_iter() {
-                let mut label: LabelRec = label.into();
-                label.sdc_repository = self.reponame();
-                wtr.serialize(&label).expect("Serialize failed");
-            }
-            next = page.next;
+            next = self.write_and_continue(page, &mut wtr);
         }
 
         Ok(())

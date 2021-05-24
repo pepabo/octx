@@ -23,3 +23,32 @@ impl Params {
         serde_urlencoded::to_string(self).unwrap()
     }
 }
+
+pub trait RepositryAware {
+    fn set_repository(&mut self, name: String);
+}
+
+pub trait UrlConstructor {
+    fn reponame(&self) -> String;
+
+    fn entrypoint(&self) -> Option<reqwest::Url>;
+}
+
+pub trait LoopWriter: UrlConstructor {
+    type Model;
+    type Record: serde::Serialize + RepositryAware + From<Self::Model>;
+
+    fn write_and_continue<T: std::io::Write>(
+        &self,
+        mut page: octocrab::Page<Self::Model>,
+        wtr: &mut csv::Writer<T>,
+    ) -> Option<reqwest::Url> {
+        let labels: Vec<Self::Model> = page.take_items();
+        for label in labels.into_iter() {
+            let mut label: Self::Record = label.into();
+            label.set_repository(self.reponame());
+            wtr.serialize(&label).expect("Serialize failed");
+        }
+        page.next
+    }
+}
