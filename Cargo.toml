@@ -14,10 +14,11 @@ url = "^0"
 chrono = { version = "^0.4", features = ["serde"] }
 anyhow = "1.0"
 # octocrab = { path = "../../XAMPPRocky/octocrab" }
-octocrab = { git = "https://github.com/XAMPPRocky/octocrab", rev = "d3beecda", default-features = false }
+octocrab = { version = "0.8.13", default-features = false }
 tokio = { version = "1.0", default-features = false, features = ["macros", "rt-multi-thread", "time"] }
 # graphql_client = "0.9"
 serde = { version = "1.0.106", features = ["derive"] }
+serde_urlencoded = "0.7.0"
 reqwest = { version = "0.11.0", default-features = false, features = ["rustls-tls", "json"] }
 #prettytable-rs = "^0.7"
 structopt = "^0.3"

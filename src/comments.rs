@@ -1,7 +1,9 @@
-use csv::Writer;
 use octocrab::models::issues::*;
 use reqwest::Url;
 use serde::*;
+
+use crate::*;
+
 type DateTime = chrono::DateTime<chrono::Utc>;
 
 #[derive(Serialize, Debug)]
@@ -18,6 +20,12 @@ pub struct CommentRec {
     pub updated_at: Option<DateTime>,
 
     pub sdc_repository: String,
+}
+
+impl RepositryAware for CommentRec {
+    fn set_repository(&mut self, name: String) {
+        self.sdc_repository = name;
+    }
 }
 
 impl From<Comment> for CommentRec {
@@ -42,49 +50,57 @@ impl From<Comment> for CommentRec {
 pub struct CommentFetcher {
     owner: String,
     name: String,
+    since: Option<DateTime>,
     octocrab: octocrab::Octocrab,
 }
 
 impl CommentFetcher {
-    pub fn new(owner: String, name: String, octocrab: octocrab::Octocrab) -> Self {
+    pub fn new(
+        owner: String,
+        name: String,
+        since: Option<DateTime>,
+        octocrab: octocrab::Octocrab,
+    ) -> Self {
         Self {
             owner,
             name,
+            since,
             octocrab,
         }
     }
+}
 
-    pub fn reponame(&self) -> String {
+impl UrlConstructor for CommentFetcher {
+    fn reponame(&self) -> String {
         format!("{}/{}", self.owner, self.name)
     }
 
-    pub async fn run<T: std::io::Write>(
-        &self,
-        since: Option<DateTime>,
-        mut wtr: Writer<T>,
-    ) -> octocrab::Result<()> {
-        let ibuilder = self.octocrab.issues(&self.owner, &self.name);
-        let mut builder = ibuilder.list_issue_comments().per_page(100);
-        if let Some(since) = since {
-            builder = builder.since(since);
-        }
+    fn entrypoint(&self) -> Option<Url> {
+        let mut param = Params::default();
+        param.per_page = 100u8.into();
+        param.since = self.since;
 
-        let mut page = builder.send().await?;
+        let route = format!(
+            "repos/{owner}/{repo}/issues/comments?{query}",
+            owner = &self.owner,
+            repo = &self.name,
+            query = param.to_query(),
+        );
+        self.octocrab.absolute_url(route).ok()
+    }
+}
 
-        let mut comments: Vec<Comment> = page.take_items();
-        for comment in comments.drain(..) {
-            let mut comment: CommentRec = comment.into();
-            comment.sdc_repository = self.reponame();
-            wtr.serialize(&comment).expect("Serialize failed");
-        }
-        while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
-            comments.extend(newpage.take_items());
-            for comment in comments.drain(..) {
-                let mut comment: CommentRec = comment.into();
-                comment.sdc_repository = self.reponame();
-                wtr.serialize(&comment).expect("Serialize failed");
-            }
-            page = newpage;
+impl LoopWriter for CommentFetcher {
+    type Model = Comment;
+    type Record = CommentRec;
+}
+
+impl CommentFetcher {
+    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+        let mut next: Option<Url> = self.entrypoint();
+
+        while let Some(page) = self.octocrab.get_page(&next).await? {
+            next = self.write_and_continue(page, &mut wtr);
         }
 
         Ok(())

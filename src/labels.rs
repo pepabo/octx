@@ -1,7 +1,8 @@
-use csv::Writer;
 use octocrab::models::*;
 use reqwest::Url;
 use serde::*;
+
+use crate::*;
 
 #[derive(Serialize, Debug)]
 pub struct LabelRec {
@@ -14,6 +15,12 @@ pub struct LabelRec {
     pub default: bool,
 
     pub sdc_repository: String,
+}
+
+impl RepositryAware for LabelRec {
+    fn set_repository(&mut self, name: String) {
+        self.sdc_repository = name;
+    }
 }
 
 impl From<Label> for LabelRec {
@@ -46,34 +53,38 @@ impl LabelFetcher {
             octocrab,
         }
     }
+}
 
-    pub fn reponame(&self) -> String {
+impl UrlConstructor for LabelFetcher {
+    fn reponame(&self) -> String {
         format!("{}/{}", self.owner, self.name)
     }
 
-    pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
-        let mut page = self
-            .octocrab
-            .issues(&self.owner, &self.name)
-            .list_labels_for_repo()
-            .per_page(100)
-            .send()
-            .await?;
+    fn entrypoint(&self) -> Option<Url> {
+        let mut param = Params::default();
+        param.per_page = 100u8.into();
 
-        let mut labels: Vec<Label> = page.take_items();
-        for label in labels.drain(..) {
-            let mut label: LabelRec = label.into();
-            label.sdc_repository = self.reponame();
-            wtr.serialize(&label).expect("Serialize failed");
-        }
-        while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
-            labels.extend(newpage.take_items());
-            for label in labels.drain(..) {
-                let mut label: LabelRec = label.into();
-                label.sdc_repository = self.reponame();
-                wtr.serialize(&label).expect("Serialize failed");
-            }
-            page = newpage;
+        let route = format!(
+            "repos/{owner}/{repo}/labels?{query}",
+            owner = &self.owner,
+            repo = &self.name,
+            query = param.to_query(),
+        );
+        self.octocrab.absolute_url(route).ok()
+    }
+}
+
+impl LoopWriter for LabelFetcher {
+    type Model = Label;
+    type Record = LabelRec;
+}
+
+impl LabelFetcher {
+    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+        let mut next: Option<Url> = self.entrypoint();
+
+        while let Some(page) = self.octocrab.get_page(&next).await? {
+            next = self.write_and_continue(page, &mut wtr);
         }
 
         Ok(())

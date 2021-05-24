@@ -1,12 +1,13 @@
-use csv::Writer;
 use octocrab::models::issues::*;
-use octocrab::params;
 use reqwest::Url;
-use serde::*;
 type DateTime = chrono::DateTime<chrono::Utc>;
 
+use serde::Serialize;
+
+use crate::*;
+
 #[derive(Serialize, Debug)]
-struct IssueRec {
+pub struct IssueRec {
     pub id: i64,
     pub node_id: String,
     pub url: Url,
@@ -36,6 +37,12 @@ struct IssueRec {
     pub updated_at: DateTime,
 
     pub sdc_repository: String,
+}
+
+impl RepositryAware for IssueRec {
+    fn set_repository(&mut self, name: String) {
+        self.sdc_repository = name;
+    }
 }
 
 impl From<Issue> for IssueRec {
@@ -108,35 +115,39 @@ impl IssueFetcher {
             octocrab,
         }
     }
+}
 
-    pub fn reponame(&self) -> String {
+impl UrlConstructor for IssueFetcher {
+    fn reponame(&self) -> String {
         format!("{}/{}", self.owner, self.name)
     }
 
-    pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
-        let mut page = self
-            .octocrab
-            .issues(&self.owner, &self.name)
-            .list()
-            .state(params::State::All)
-            .per_page(100)
-            .send()
-            .await?;
+    fn entrypoint(&self) -> Option<Url> {
+        let mut param = Params::default();
+        param.per_page = 100u8.into();
+        param.state = octocrab::params::State::All.into();
 
-        let mut issues: Vec<Issue> = page.take_items();
-        for issue in issues.drain(..) {
-            let mut issue: IssueRec = issue.into();
-            issue.sdc_repository = self.reponame();
-            wtr.serialize(&issue).expect("Serialize failed");
-        }
-        while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
-            issues.extend(newpage.take_items());
-            for issue in issues.drain(..) {
-                let mut issue: IssueRec = issue.into();
-                issue.sdc_repository = self.reponame();
-                wtr.serialize(&issue).expect("Serialize failed");
-            }
-            page = newpage;
+        let route = format!(
+            "repos/{owner}/{repo}/issues?{query}",
+            owner = &self.owner,
+            repo = &self.name,
+            query = param.to_query(),
+        );
+        self.octocrab.absolute_url(route).ok()
+    }
+}
+
+impl LoopWriter for IssueFetcher {
+    type Model = Issue;
+    type Record = IssueRec;
+}
+
+impl IssueFetcher {
+    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+        let mut next: Option<Url> = self.entrypoint();
+
+        while let Some(page) = self.octocrab.get_page(&next).await? {
+            next = self.write_and_continue(page, &mut wtr);
         }
 
         Ok(())

@@ -1,20 +1,8 @@
-use csv::Writer;
 use octocrab::models::User;
-use octocrab::Page;
 use reqwest::Url;
 use serde::*;
 
-pub struct UserFetcher {
-    octocrab: octocrab::Octocrab,
-}
-
-#[derive(Serialize)]
-struct UserHandler {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    per_page: Option<u8>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    page: Option<u32>,
-}
+use crate::*;
 
 #[derive(Serialize, Debug)]
 pub struct UserRec {
@@ -36,6 +24,10 @@ pub struct UserRec {
     pub received_events_url: Url,
     pub r#type: String,
     pub site_admin: bool,
+}
+
+impl RepositryAware for UserRec {
+    fn set_repository(&mut self, _: String) {}
 }
 
 impl From<User> for UserRec {
@@ -63,30 +55,41 @@ impl From<User> for UserRec {
     }
 }
 
+pub struct UserFetcher {
+    octocrab: octocrab::Octocrab,
+}
+
 impl UserFetcher {
     pub fn new(octocrab: octocrab::Octocrab) -> Self {
         Self { octocrab }
     }
+}
 
-    pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
-        let handler = UserHandler {
-            per_page: Some(100u8),
-            page: None,
-        };
-        let mut page: Page<User> = self.octocrab.get("users", Some(&handler)).await?;
+impl UrlConstructor for UserFetcher {
+    fn reponame(&self) -> String {
+        "".to_string()
+    }
 
-        let mut users: Vec<User> = page.take_items();
-        for user in users.drain(..) {
-            let user: UserRec = user.into();
-            wtr.serialize(&user).expect("Serialize failed");
-        }
-        while let Some(mut newpage) = self.octocrab.get_page(&page.next).await? {
-            users.extend(newpage.take_items());
-            for user in users.drain(..) {
-                let user: UserRec = user.into();
-                wtr.serialize(&user).expect("Serialize failed");
-            }
-            page = newpage;
+    fn entrypoint(&self) -> Option<Url> {
+        let mut param = Params::default();
+        param.per_page = 100u8.into();
+
+        let route = format!("users?{query}", query = param.to_query());
+        self.octocrab.absolute_url(route).ok()
+    }
+}
+
+impl LoopWriter for UserFetcher {
+    type Model = User;
+    type Record = UserRec;
+}
+
+impl UserFetcher {
+    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+        let mut next: Option<Url> = self.entrypoint();
+
+        while let Some(page) = self.octocrab.get_page(&next).await? {
+            next = self.write_and_continue(page, &mut wtr);
         }
 
         Ok(())
