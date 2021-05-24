@@ -1,6 +1,5 @@
-use super::Params;
+use super::*;
 
-use csv::Writer;
 use octocrab::models::{issues, Milestone, ProjectCard, User};
 use reqwest::Url;
 use serde::*;
@@ -51,7 +50,7 @@ pub struct Label {
 }
 
 #[derive(Serialize, Debug)]
-struct EventRec {
+pub struct EventRec {
     pub id: Option<i64>,
     pub node_id: Option<String>,
     pub url: Option<String>,
@@ -70,6 +69,12 @@ struct EventRec {
     pub issue_id: i64,
 
     pub sdc_repository: String,
+}
+
+impl RepositryAware for EventRec {
+    fn set_repository(&mut self, name: String) {
+        self.sdc_repository = name;
+    }
 }
 
 impl From<IssueEvent> for EventRec {
@@ -103,14 +108,6 @@ pub struct IssueEventFetcher {
     octocrab: octocrab::Octocrab,
 }
 
-#[derive(Serialize)]
-struct EventHandler {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    per_page: Option<u8>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    page: Option<u32>,
-}
-
 impl IssueEventFetcher {
     pub fn new(owner: String, name: String, octocrab: octocrab::Octocrab) -> Self {
         Self {
@@ -119,12 +116,14 @@ impl IssueEventFetcher {
             octocrab,
         }
     }
+}
 
-    pub fn reponame(&self) -> String {
+impl UrlConstructor for IssueEventFetcher {
+    fn reponame(&self) -> String {
         format!("{}/{}", self.owner, self.name)
     }
 
-    pub async fn run<T: std::io::Write>(&self, mut wtr: Writer<T>) -> octocrab::Result<()> {
+    fn entrypoint(&self) -> Option<Url> {
         let mut param = Params::default();
         param.per_page = 100u8.into();
 
@@ -134,16 +133,21 @@ impl IssueEventFetcher {
             repo = &self.name,
             query = param.to_query(),
         );
-        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+        self.octocrab.absolute_url(route).ok()
+    }
+}
 
-        while let Some(mut page) = self.octocrab.get_page(&next).await? {
-            let events: Vec<IssueEvent> = page.take_items();
-            for event in events.into_iter() {
-                let mut event: EventRec = event.into();
-                event.sdc_repository = self.reponame();
-                wtr.serialize(&event).expect("Serialize failed");
-            }
-            next = page.next;
+impl LoopWriter for IssueEventFetcher {
+    type Model = IssueEvent;
+    type Record = EventRec;
+}
+
+impl IssueEventFetcher {
+    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+        let mut next: Option<Url> = self.entrypoint();
+
+        while let Some(page) = self.octocrab.get_page(&next).await? {
+            next = self.write_and_continue(page, &mut wtr);
         }
 
         Ok(())

@@ -66,20 +66,20 @@ async fn main() -> octocrab::Result<()> {
     } else if args.target_events {
         info!("Target: events");
         let runner = IssueEventFetcher::new(owner, name, octocrab);
-        runner.run(wtr).await?;
+        runner.fetch(wtr).await?;
     } else if args.target_comments {
         info!("Target: comments");
-        let runner = CommentFetcher::new(owner, name, octocrab);
         let since = args.days_ago.map(|ago| Utc::now() - Duration::days(ago));
-        runner.run(since, wtr).await?;
+        let runner = CommentFetcher::new(owner, name, since, octocrab);
+        runner.fetch(wtr).await?;
     } else if args.target_labels {
-        info!("Target: labes");
+        info!("Target: labels");
         let runner = LabelFetcher::new(owner, name, octocrab);
         runner.fetch(wtr).await?;
     } else if args.target_users {
-        info!("Target: labes");
+        info!("Target: users");
         let runner = UserFetcher::new(octocrab);
-        runner.run(wtr).await?;
+        runner.fetch(wtr).await?;
     } else {
         error!("No target specified");
     }
