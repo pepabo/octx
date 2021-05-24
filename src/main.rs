@@ -62,7 +62,7 @@ async fn main() -> octocrab::Result<()> {
     if args.target_issues {
         info!("Target: issues");
         let runner = IssueFetcher::new(owner, name, octocrab);
-        runner.run(wtr).await?;
+        runner.fetch(wtr).await?;
     } else if args.target_events {
         info!("Target: events");
         let runner = IssueEventFetcher::new(owner, name, octocrab);

@@ -2,10 +2,7 @@ use octocrab::models::*;
 use reqwest::Url;
 use serde::*;
 
-use crate::LoopWriter;
-use crate::Params;
-use crate::RepositryAware;
-use crate::UrlConstructor;
+use crate::*;
 
 #[derive(Serialize, Debug)]
 pub struct LabelRec {
