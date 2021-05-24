@@ -15,7 +15,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<octocrab::params::State>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    since: Option<chrono::DateTime<chrono::Utc>>,
+    pub since: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl Params {
