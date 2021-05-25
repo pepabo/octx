@@ -104,14 +104,21 @@ impl From<Issue> for IssueRec {
 pub struct IssueFetcher {
     owner: String,
     name: String,
+    since: Option<DateTime>,
     octocrab: octocrab::Octocrab,
 }
 
 impl IssueFetcher {
-    pub fn new(owner: String, name: String, octocrab: octocrab::Octocrab) -> IssueFetcher {
+    pub fn new(
+        owner: String,
+        name: String,
+        since: Option<DateTime>,
+        octocrab: octocrab::Octocrab,
+    ) -> IssueFetcher {
         IssueFetcher {
             owner,
             name,
+            since,
             octocrab,
         }
     }
@@ -126,6 +133,7 @@ impl UrlConstructor for IssueFetcher {
         let mut param = Params::default();
         param.per_page = 100u8.into();
         param.state = octocrab::params::State::All.into();
+        param.since = self.since;
 
         let route = format!(
             "repos/{owner}/{repo}/issues?{query}",

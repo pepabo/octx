@@ -105,14 +105,21 @@ impl From<IssueEvent> for EventRec {
 pub struct IssueEventFetcher {
     owner: String,
     name: String,
+    since: Option<DateTime>,
     octocrab: octocrab::Octocrab,
 }
 
 impl IssueEventFetcher {
-    pub fn new(owner: String, name: String, octocrab: octocrab::Octocrab) -> Self {
+    pub fn new(
+        owner: String,
+        name: String,
+        since: Option<DateTime>,
+        octocrab: octocrab::Octocrab,
+    ) -> Self {
         Self {
             owner,
             name,
+            since,
             octocrab,
         }
     }

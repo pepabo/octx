@@ -71,17 +71,18 @@ async fn main() -> octocrab::Result<()> {
         let owner = args.owner.unwrap();
         let name = args.name.unwrap();
 
+        let since = args.days_ago.map(|ago| Utc::now() - Duration::days(ago));
+
         if args.target_issues {
             info!("Target: issues");
-            let runner = IssueFetcher::new(owner, name, octocrab);
+            let runner = IssueFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr).await?;
         } else if args.target_events {
             info!("Target: events");
-            let runner = IssueEventFetcher::new(owner, name, octocrab);
+            let runner = IssueEventFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr).await?;
         } else if args.target_comments {
             info!("Target: comments");
-            let since = args.days_ago.map(|ago| Utc::now() - Duration::days(ago));
             let runner = CommentFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr).await?;
         } else if args.target_labels {
