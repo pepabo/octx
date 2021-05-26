@@ -14,7 +14,14 @@ use octx::{
 };
 
 #[derive(StructOpt)]
-#[structopt(about)]
+/// GitHub query & extracter (Enterprise ready)
+#[structopt(after_help = "ENVIRONMENT VARIABLES:
+    GITHUB_API_TOKEN: *Required* Token for your github. PAT is OK
+    GITHUB_API_URL: Your enterprise server entrypoint. Please end the path with `/'
+
+EXAMPLE:
+    octx --issues rust-lang rust --days-ago 30
+")]
 struct Command {
     /// Extract issues - including pull requests
     #[structopt(long = "issues")]
