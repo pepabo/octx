@@ -71,8 +71,7 @@ impl UrlConstructor for UserFetcher {
     }
 
     fn entrypoint(&self) -> Option<Url> {
-        let mut param = Params::default();
-        param.per_page = 100u8.into();
+        let param = Params::default();
 
         let route = format!("users?{query}", query = param.to_query());
         self.octocrab.absolute_url(route).ok()

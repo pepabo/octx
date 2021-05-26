@@ -8,7 +8,7 @@ pub mod users;
 
 use serde::Serialize;
 
-#[derive(Serialize, Debug, Default)]
+#[derive(Serialize, Debug)]
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub per_page: Option<u8>,
@@ -21,6 +21,16 @@ pub struct Params {
 impl Params {
     pub fn to_query(&self) -> String {
         serde_urlencoded::to_string(self).unwrap()
+    }
+}
+
+impl Default for Params {
+    fn default() -> Self {
+        Self {
+            per_page: 100u8.into(),
+            state: None,
+            since: None,
+        }
     }
 }
 

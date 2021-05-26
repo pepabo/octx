@@ -130,10 +130,11 @@ impl UrlConstructor for IssueFetcher {
     }
 
     fn entrypoint(&self) -> Option<Url> {
-        let mut param = Params::default();
-        param.per_page = 100u8.into();
-        param.state = octocrab::params::State::All.into();
-        param.since = self.since;
+        let param = Params {
+            state: octocrab::params::State::All.into(),
+            since: self.since,
+            ..Default::default()
+        };
 
         let route = format!(
             "repos/{owner}/{repo}/issues?{query}",

@@ -76,9 +76,10 @@ impl UrlConstructor for CommentFetcher {
     }
 
     fn entrypoint(&self) -> Option<Url> {
-        let mut param = Params::default();
-        param.per_page = 100u8.into();
-        param.since = self.since;
+        let param = Params {
+            since: self.since,
+            ..Default::default()
+        };
 
         let route = format!(
             "repos/{owner}/{repo}/issues/comments?{query}",
