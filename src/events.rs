@@ -1,13 +1,20 @@
 use super::*;
 
-use octocrab::models::{issues, Milestone, ProjectCard, User};
+use octocrab::models::{issues, ProjectCard, User};
 use reqwest::Url;
 use serde::*;
 type DateTime = chrono::DateTime<chrono::Utc>;
 
+// milestoned event should include only title
+// See: https://docs.github.com/en/developers/webhooks-and-events/events/issue-event-types#milestoned
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MilestonePartial {
+    pub title: String,
+}
+
 // Copied from octocrab::models::IssueEvent
 // There are more events than Event enum defined
-// Detailed: https://docs.github.com/en/developers/webhooks-and-events/issue-event-types
+// Detail: https://docs.github.com/en/developers/webhooks-and-events/issue-event-types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct IssueEvent {
@@ -17,7 +24,8 @@ pub struct IssueEvent {
     pub node_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
-    pub actor: User,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actor: Option<User>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<User>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -29,7 +37,7 @@ pub struct IssueEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<Label>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub milestone: Option<Milestone>,
+    pub milestone: Option<MilestonePartial>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_card: Option<ProjectCard>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -54,7 +62,7 @@ pub struct EventRec {
     pub id: Option<i64>,
     pub node_id: Option<String>,
     pub url: Option<String>,
-    pub actor_id: i64,
+    pub actor_id: Option<i64>,
     pub assignee_id: Option<i64>,
     pub assigner_id: Option<i64>,
     pub review_requester_id: Option<i64>,
@@ -83,7 +91,7 @@ impl From<IssueEvent> for EventRec {
             id: from.id,
             node_id: from.node_id,
             url: from.url,
-            actor_id: from.actor.id,
+            actor_id: from.actor.map(|u| u.id),
             event: from.event,
             assignee_id: from.assignee.map(|u| u.id),
             assigner_id: from.assigner.map(|u| u.id),
