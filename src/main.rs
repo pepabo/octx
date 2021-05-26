@@ -1,5 +1,5 @@
 use anyhow::*;
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use csv::WriterBuilder;
 use log::*;
 use serde::*;
@@ -35,6 +35,11 @@ struct Command {
     /// Only valid for --issues, --comments and --events
     #[structopt(long = "days-ago")]
     days_ago: Option<i64>,
+    /// Extract models created after specified date.
+    /// ISO 8601 format string is recommended.
+    /// To see example, use e.g. `date --iso-8601=seconds`
+    #[structopt(long = "since-date")]
+    since_date: Option<String>,
     #[structopt(name = "owner")]
     owner: Option<String>,
     #[structopt(name = "name")]
@@ -71,7 +76,14 @@ async fn main() -> octocrab::Result<()> {
         let owner = args.owner.unwrap();
         let name = args.name.unwrap();
 
-        let since = args.days_ago.map(|ago| Utc::now() - Duration::days(ago));
+        let since = if args.days_ago.is_some() {
+            args.days_ago.map(|ago| Utc::now() - Duration::days(ago))
+        } else if args.since_date.is_some() {
+            args.since_date
+                .map(|date| DateTime::parse_from_rfc3339(&date).unwrap().into())
+        } else {
+            None
+        };
 
         if args.target_issues {
             info!("Target: issues");
