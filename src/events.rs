@@ -105,14 +105,21 @@ impl From<IssueEvent> for EventRec {
 pub struct IssueEventFetcher {
     owner: String,
     name: String,
+    since: Option<DateTime>,
     octocrab: octocrab::Octocrab,
 }
 
 impl IssueEventFetcher {
-    pub fn new(owner: String, name: String, octocrab: octocrab::Octocrab) -> Self {
+    pub fn new(
+        owner: String,
+        name: String,
+        since: Option<DateTime>,
+        octocrab: octocrab::Octocrab,
+    ) -> Self {
         Self {
             owner,
             name,
+            since,
             octocrab,
         }
     }
@@ -146,8 +153,24 @@ impl IssueEventFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
         let mut next: Option<Url> = self.entrypoint();
 
-        while let Some(page) = self.octocrab.get_page(&next).await? {
-            next = self.write_and_continue(page, &mut wtr);
+        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+            let labels: Vec<IssueEvent> = page.take_items();
+            let mut last_update: Option<DateTime> = None;
+            for label in labels.into_iter() {
+                let mut label: EventRec = label.into();
+                label.set_repository(self.reponame());
+                wtr.serialize(&label).expect("Serialize failed");
+                last_update = label.created_at.into()
+            }
+            next = if let Some(since) = self.since {
+                if last_update.unwrap() < since {
+                    None
+                } else {
+                    page.next
+                }
+            } else {
+                page.next
+            };
         }
 
         Ok(())
