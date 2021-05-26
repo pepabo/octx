@@ -61,8 +61,7 @@ impl UrlConstructor for LabelFetcher {
     }
 
     fn entrypoint(&self) -> Option<Url> {
-        let mut param = Params::default();
-        param.per_page = 100u8.into();
+        let param = Params::default();
 
         let route = format!(
             "repos/{owner}/{repo}/labels?{query}",
