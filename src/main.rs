@@ -10,7 +10,7 @@ use std::io;
 extern crate octx;
 use octx::{
     comments::CommentFetcher, events::IssueEventFetcher, issues::IssueFetcher,
-    labels::LabelFetcher, users::UserFetcher,
+    labels::LabelFetcher, users::UserFetcher, users_detailed::UserDetailedFetcher,
 };
 
 #[derive(StructOpt)]
@@ -35,6 +35,9 @@ struct Command {
     /// Extract issue labels
     #[structopt(long = "labels")]
     target_labels: bool,
+    /// Extract users with detailed info - owner/name is not required. this option takes some more minutes
+    #[structopt(long = "users-detailed")]
+    target_users_detailed: bool,
     /// Extract users - owner/name is not required for this option
     #[structopt(long = "users")]
     target_users: bool,
@@ -75,7 +78,11 @@ async fn main() -> octocrab::Result<()> {
         .has_headers(true)
         .from_writer(io::stdout());
 
-    if args.target_users {
+    if args.target_users_detailed {
+        info!("Target: users(detailed)");
+        let runner = UserDetailedFetcher::new(octocrab);
+        runner.fetch(wtr).await?;
+    } else if args.target_users {
         info!("Target: users");
         let runner = UserFetcher::new(octocrab);
         runner.fetch(wtr).await?;

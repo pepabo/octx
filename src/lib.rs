@@ -5,6 +5,7 @@ pub mod events;
 pub mod issues;
 pub mod labels;
 pub mod users;
+pub mod users_detailed;
 
 use serde::Serialize;
 
