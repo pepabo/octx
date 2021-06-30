@@ -1,4 +1,3 @@
-use octocrab::models::{repos::Object, User};
 use reqwest::Url;
 use serde::*;
 
@@ -7,7 +6,6 @@ use crate::*;
 type DateTime = chrono::DateTime<chrono::Utc>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[non_exhaustive]
 pub struct Commit {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
@@ -20,11 +18,22 @@ pub struct Commit {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comments_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<User>,
+    pub author: Option<UserId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub committer: Option<User>,
+    pub committer: Option<UserId>,
     pub commit: GitCommit,
     pub parents: Vec<Object>, // is added
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UserId {
+    id: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Object {
+    sha: String,
+    url: Url,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -80,15 +89,12 @@ impl From<Commit> for CommitRec {
             url: from.url,
             html_url: from.html_url,
             comments_url: from.comments_url,
-            author_id: from.author.map(|u| u.id),
-            committer_id: from.committer.map(|u| u.id),
+            author_id: from.author.map(|u| u.id).flatten(),
+            committer_id: from.committer.map(|u| u.id).flatten(),
             parents: from
                 .parents
                 .iter()
-                .map(|v| match v {
-                    Object::Commit { sha, url: _ } => sha.to_owned(),
-                    _ => "".to_string(),
-                })
+                .map(|v| v.sha.to_owned())
                 .collect::<Vec<String>>()
                 .join(" "),
             message: from.commit.message,
