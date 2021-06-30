@@ -10,7 +10,7 @@ use std::io;
 extern crate octx;
 use octx::{
     comments::CommentFetcher, events::IssueEventFetcher, issues::IssueFetcher,
-    labels::LabelFetcher, users::UserFetcher,
+    labels::LabelFetcher, users::UserFetcher, users_detailed::UserDetailedFetcher,
 };
 
 #[derive(StructOpt)]
@@ -80,6 +80,8 @@ async fn main() -> octocrab::Result<()> {
 
     if args.target_users_detailed {
         info!("Target: users(detailed)");
+        let runner = UserDetailedFetcher::new(octocrab);
+        runner.fetch(wtr).await?;
     } else if args.target_users {
         info!("Target: users");
         let runner = UserFetcher::new(octocrab);
