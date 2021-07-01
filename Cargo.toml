@@ -1,6 +1,6 @@
 [package]
 name = "octx"
-version = "0.4.3"
+version = "0.4.4"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
 repository = "https://github.com/udzura/octx"
 keywords = ["github", "cli", "etl"]
