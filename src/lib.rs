@@ -5,6 +5,7 @@ pub mod commits;
 pub mod events;
 pub mod issues;
 pub mod labels;
+pub mod releases;
 pub mod users;
 pub mod users_detailed;
 
