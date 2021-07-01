@@ -1,18 +1,20 @@
 use chrono::{DateTime, Utc};
-use octocrab::models::repos::*;
+use octocrab::models::repos::Asset;
 use reqwest::Url;
 use serde::*;
 
 use crate::*;
 
-#[derive(Serialize, Debug)]
-pub struct ReleaseRec {
+// use octocrab::models::repos::Release;
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct Release {
     pub url: Url,
     pub html_url: Url,
     pub assets_url: Url,
     pub upload_url: Url,
-    pub tarball_url: Url,
-    pub zipball_url: Url,
+    pub tarball_url: Option<Url>,
+    pub zipball_url: Option<Url>,
     pub id: i64,
     pub node_id: String,
     pub tag_name: String,
@@ -22,8 +24,30 @@ pub struct ReleaseRec {
     pub draft: bool,
     pub prerelease: bool,
     pub created_at: DateTime<Utc>,
-    pub published_at: DateTime<Utc>,
-    pub author_id: i64,
+    pub published_at: Option<DateTime<Utc>>,
+    pub author: Option<octocrab::models::User>,
+    pub assets: Vec<Asset>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct ReleaseRec {
+    pub url: Url,
+    pub html_url: Url,
+    pub assets_url: Url,
+    pub upload_url: Url,
+    pub tarball_url: Option<Url>,
+    pub zipball_url: Option<Url>,
+    pub id: i64,
+    pub node_id: String,
+    pub tag_name: String,
+    pub target_commitish: String,
+    pub name: Option<String>,
+    pub body: Option<String>,
+    pub draft: bool,
+    pub prerelease: bool,
+    pub created_at: DateTime<Utc>,
+    pub published_at: Option<DateTime<Utc>>,
+    pub author_id: Option<i64>,
     pub assets: String,
 
     pub sdc_repository: String,
@@ -48,7 +72,7 @@ impl From<Release> for ReleaseRec {
             prerelease: from.prerelease,
             created_at: from.created_at,
             published_at: from.published_at,
-            author_id: from.author.id,
+            author_id: from.author.map(|u| u.id),
             assets: from
                 .assets
                 .iter()
