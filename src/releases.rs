@@ -3,6 +3,8 @@ use octocrab::models::repos::*;
 use reqwest::Url;
 use serde::*;
 
+use crate::*;
+
 #[derive(Serialize, Debug)]
 pub struct ReleaseRec {
     pub url: Url,
@@ -56,5 +58,62 @@ impl From<Release> for ReleaseRec {
 
             sdc_repository: String::default(),
         }
+    }
+}
+
+impl RepositryAware for ReleaseRec {
+    fn set_repository(&mut self, name: String) {
+        self.sdc_repository = name;
+    }
+}
+
+pub struct ReleaseFetcher {
+    owner: String,
+    name: String,
+    octocrab: octocrab::Octocrab,
+}
+
+impl ReleaseFetcher {
+    pub fn new(owner: String, name: String, octocrab: octocrab::Octocrab) -> Self {
+        Self {
+            owner,
+            name,
+            octocrab,
+        }
+    }
+}
+
+impl UrlConstructor for ReleaseFetcher {
+    fn reponame(&self) -> String {
+        format!("{}/{}", self.owner, self.name)
+    }
+
+    fn entrypoint(&self) -> Option<Url> {
+        let param = Params::default();
+
+        let route = format!(
+            "repos/{owner}/{repo}/releases?{query}",
+            owner = &self.owner,
+            repo = &self.name,
+            query = param.to_query(),
+        );
+        self.octocrab.absolute_url(route).ok()
+    }
+}
+
+impl LoopWriter for ReleaseFetcher {
+    type Model = Release;
+    type Record = ReleaseRec;
+}
+
+impl ReleaseFetcher {
+    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+        let mut next: Option<Url> = self.entrypoint();
+
+        while let Some(page) = self.octocrab.get_page(&next).await? {
+            next = self.write_and_continue(page, &mut wtr);
+        }
+
+        Ok(())
     }
 }
