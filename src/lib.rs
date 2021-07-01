@@ -1,6 +1,7 @@
 extern crate serde_urlencoded;
 
 pub mod comments;
+pub mod commits;
 pub mod events;
 pub mod issues;
 pub mod labels;

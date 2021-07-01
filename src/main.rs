@@ -9,8 +9,9 @@ use std::io;
 
 extern crate octx;
 use octx::{
-    comments::CommentFetcher, events::IssueEventFetcher, issues::IssueFetcher,
-    labels::LabelFetcher, users::UserFetcher, users_detailed::UserDetailedFetcher,
+    comments::CommentFetcher, commits::CommitFetcher, events::IssueEventFetcher,
+    issues::IssueFetcher, labels::LabelFetcher, users::UserFetcher,
+    users_detailed::UserDetailedFetcher,
 };
 
 #[derive(StructOpt)]
@@ -32,6 +33,9 @@ struct Command {
     /// Extract issue comments
     #[structopt(long = "comments")]
     target_comments: bool,
+    /// Extract commits from a repo
+    #[structopt(long = "commits")]
+    target_commits: bool,
     /// Extract issue labels
     #[structopt(long = "labels")]
     target_labels: bool,
@@ -110,6 +114,10 @@ async fn main() -> octocrab::Result<()> {
         } else if args.target_comments {
             info!("Target: comments");
             let runner = CommentFetcher::new(owner, name, since, octocrab);
+            runner.fetch(wtr).await?;
+        } else if args.target_commits {
+            info!("Target: commits");
+            let runner = CommitFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr).await?;
         } else if args.target_labels {
             info!("Target: labels");
