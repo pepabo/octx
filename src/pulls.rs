@@ -18,8 +18,8 @@ pub struct PullRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct PullRequestFile {
-    pub sha: String,
-    pub filename: String,
+    pub sha: Option<String>,
+    pub filename: Option<String>,
     pub additions: i32,
     pub deletions: i32,
     pub changes: i32,
@@ -59,7 +59,7 @@ impl PullFileFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
         let param = Params::default();
         let route = format!(
-            "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated",
+            "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
