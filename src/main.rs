@@ -10,8 +10,8 @@ use std::io;
 extern crate octx;
 use octx::{
     comments::CommentFetcher, commits::CommitFetcher, events::IssueEventFetcher,
-    issues::IssueFetcher, labels::LabelFetcher, releases::ReleaseFetcher, users::UserFetcher,
-    users_detailed::UserDetailedFetcher,
+    issues::IssueFetcher, labels::LabelFetcher, pulls::PullFileFetcher, releases::ReleaseFetcher,
+    users::UserFetcher, users_detailed::UserDetailedFetcher,
 };
 
 #[derive(StructOpt)]
@@ -48,8 +48,11 @@ struct Command {
     /// Extract users - owner/name is not required for this option
     #[structopt(long = "users")]
     target_users: bool,
+    /// Extract Files included in pull requests
+    #[structopt(long = "pull-request-files")]
+    target_pull_files: bool,
     /// Extract models created after N days ago.
-    /// Only valid for --issues, --comments and --events
+    /// Only valid for --issues, --comments, --events --commits, --pull-request-files
     #[structopt(long = "days-ago")]
     days_ago: Option<i64>,
     /// Extract models created after specified date.
@@ -121,6 +124,10 @@ async fn main() -> octocrab::Result<()> {
         } else if args.target_commits {
             info!("Target: commits");
             let runner = CommitFetcher::new(owner, name, since, octocrab);
+            runner.fetch(wtr).await?;
+        } else if args.target_pull_files {
+            info!("Target: pull files");
+            let runner = PullFileFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr).await?;
         } else if args.target_labels {
             info!("Target: labels");
