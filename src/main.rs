@@ -11,7 +11,8 @@ extern crate octx;
 use octx::{
     comments::CommentFetcher, commits::CommitFetcher, events::IssueEventFetcher,
     issues::IssueFetcher, labels::LabelFetcher, pulls::PullFileFetcher, releases::ReleaseFetcher,
-    users::UserFetcher, users_detailed::UserDetailedFetcher,
+    users::UserFetcher, users_detailed::UserDetailedFetcher, workflows::WorkFlowFetcher,
+    workflows::RunFetcher, workflows::JobFetcher,
 };
 
 #[derive(StructOpt)]
@@ -51,6 +52,15 @@ struct Command {
     /// Extract Files included in pull requests
     #[structopt(long = "pull-request-files")]
     target_pull_files: bool,
+    /// Extract workflows
+    #[structopt(long = "workflows")]
+    target_workflows: bool,
+    /// Extract runs
+    #[structopt(long = "runs")]
+    target_runs: bool,
+    /// Extract jobs
+    #[structopt(long = "jobs")]
+    target_jobs: bool,
     /// Extract models created after N days ago.
     /// Only valid for --issues, --comments, --events --commits, --pull-request-files
     #[structopt(long = "days-ago")]
@@ -60,6 +70,12 @@ struct Command {
     /// To see example, use e.g. `date --iso-8601=seconds`
     #[structopt(long = "since-date")]
     since_date: Option<String>,
+    /// Extract Workflow runs for specified workflow file.
+    #[structopt(long = "workflow-file")]
+    workflow_file: Option<String>,
+    /// Extract Workflow jobs for specified run id.
+    #[structopt(long = "run-id")]
+    run_id: Option<String>,
     #[structopt(name = "owner")]
     owner: Option<String>,
     #[structopt(name = "name")]
@@ -137,6 +153,18 @@ async fn main() -> octocrab::Result<()> {
             info!("Target: releases");
             let runner = ReleaseFetcher::new(owner, name, octocrab);
             runner.fetch(wtr).await?;
+        } else if args.target_workflows {
+            info!("Target: workflows");
+            let runner = WorkFlowFetcher::new(owner, name, octocrab);
+            runner.fetch(wtr).await?;
+        } else if args.target_runs {
+            info!("Target: runs");
+            let runner = RunFetcher::new(owner, name, octocrab);
+            runner.fetch(wtr, args.workflow_file).await?;
+        } else if args.target_jobs {
+            info!("Target: jobs");
+            let runner = JobFetcher::new(owner, name, octocrab);
+            runner.fetch(wtr, args.run_id).await?;
         } else {
             error!("No target specified");
         }
