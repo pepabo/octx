@@ -9,6 +9,8 @@ pub mod pulls;
 pub mod releases;
 pub mod users;
 pub mod users_detailed;
+pub mod workflows;
+pub mod api_ext;
 
 use serde::Serialize;
 
@@ -20,6 +22,8 @@ pub struct Params {
     pub state: Option<octocrab::params::State>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub since: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filter: Option<String>,
 }
 
 impl Params {
@@ -34,6 +38,7 @@ impl Default for Params {
             per_page: 100u8.into(),
             state: None,
             since: None,
+            filter: None,
         }
     }
 }
