@@ -11,8 +11,8 @@ extern crate octx;
 use octx::{
     comments::CommentFetcher, commits::CommitFetcher, events::IssueEventFetcher,
     issues::IssueFetcher, labels::LabelFetcher, pulls::PullFileFetcher, releases::ReleaseFetcher,
-    users::UserFetcher, users_detailed::UserDetailedFetcher, workflows::WorkFlowFetcher,
-    workflows::RunFetcher, workflows::JobFetcher,
+    users::UserFetcher, users_detailed::UserDetailedFetcher, workflows::JobFetcher,
+    workflows::RunFetcher, workflows::WorkFlowFetcher,
 };
 
 #[derive(StructOpt)]
@@ -61,6 +61,9 @@ struct Command {
     /// Extract jobs
     #[structopt(long = "jobs")]
     target_jobs: bool,
+    /// Extract pull request reviews
+    #[structopt(long = "reviews")]
+    target_reviews: bool,
     /// Extract models created after N days ago.
     /// Only valid for --issues, --comments, --events --commits, --pull-request-files
     #[structopt(long = "days-ago")]
@@ -165,6 +168,11 @@ async fn main() -> octocrab::Result<()> {
             info!("Target: jobs");
             let runner = JobFetcher::new(owner, name, octocrab);
             runner.fetch(wtr, args.run_id).await?;
+        } else if args.target_reviews {
+            info!("Target: reviews");
+            // let runner = JobFetcher::new(owner, name, octocrab);
+            // runner.fetch(wtr, args.run_id).await?;
+            unimplemented!("Hola")
         } else {
             error!("No target specified");
         }
