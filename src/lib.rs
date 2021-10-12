@@ -1,5 +1,6 @@
 extern crate serde_urlencoded;
 
+pub mod api_ext;
 pub mod comments;
 pub mod commits;
 pub mod events;
@@ -7,10 +8,10 @@ pub mod issues;
 pub mod labels;
 pub mod pulls;
 pub mod releases;
+pub mod reviews;
 pub mod users;
 pub mod users_detailed;
 pub mod workflows;
-pub mod api_ext;
 
 use serde::Serialize;
 
