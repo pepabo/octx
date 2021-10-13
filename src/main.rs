@@ -11,8 +11,8 @@ extern crate octx;
 use octx::{
     comments::CommentFetcher, commits::CommitFetcher, events::IssueEventFetcher,
     issues::IssueFetcher, labels::LabelFetcher, pulls::PullFileFetcher, releases::ReleaseFetcher,
-    users::UserFetcher, users_detailed::UserDetailedFetcher, workflows::JobFetcher,
-    workflows::RunFetcher, workflows::WorkFlowFetcher,
+    reviews::ReviewFetcher, users::UserFetcher, users_detailed::UserDetailedFetcher,
+    workflows::JobFetcher, workflows::RunFetcher, workflows::WorkFlowFetcher,
 };
 
 #[derive(StructOpt)]
@@ -170,8 +170,8 @@ async fn main() -> octocrab::Result<()> {
             runner.fetch(wtr, args.run_id).await?;
         } else if args.target_reviews {
             info!("Target: reviews");
-            // let runner = JobFetcher::new(owner, name, octocrab);
-            // runner.fetch(wtr, args.run_id).await?;
+            let runner = ReviewFetcher::new(owner, name, since, octocrab);
+            runner.fetch(wtr).await?;
             unimplemented!("Hola")
         } else {
             error!("No target specified");

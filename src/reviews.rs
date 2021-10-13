@@ -1,9 +1,19 @@
 extern crate octocrab;
+use chrono::{DateTime, Utc};
 use octocrab::models::{pulls::ReviewState, User};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::*;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct PullRequest {
+    pub id: u64,
+
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
 
 // Should support author_association: key.
 // ref: https://docs.github.com/en/rest/reference/pulls#list-reviews-for-a-pull-request
@@ -72,5 +82,64 @@ impl From<Review> for ReviewRec {
             pull_request_number: None,
             sdc_repository: String::default(),
         }
+    }
+}
+
+pub struct ReviewFetcher {
+    owner: String,
+    name: String,
+    since: Option<DateTime<Utc>>,
+    octocrab: octocrab::Octocrab,
+}
+
+impl ReviewFetcher {
+    pub fn new(
+        owner: String,
+        name: String,
+        since: Option<DateTime<Utc>>,
+        octocrab: octocrab::Octocrab,
+    ) -> Self {
+        Self {
+            owner,
+            name,
+            since,
+            octocrab,
+        }
+    }
+}
+
+impl ReviewFetcher {
+    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+        let param = Params::default();
+        let route = format!(
+            "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
+            owner = &self.owner,
+            repo = &self.name,
+            query = param.to_query(),
+        );
+        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+
+        let mut pull_ids: Vec<u64> = vec![];
+        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+            let pulls: Vec<PullRequest> = page.take_items();
+            let mut last_update: Option<DateTime<Utc>> = None;
+            for pull in pulls.into_iter() {
+                pull_ids.push(pull.id);
+                last_update = Some(pull.updated_at.unwrap_or_else(|| pull.created_at));
+            }
+
+            next = if let Some(since) = self.since {
+                if last_update.unwrap() < since {
+                    None
+                } else {
+                    page.next
+                }
+            } else {
+                page.next
+            };
+        }
+
+        eprintln!("{:?}", pull_ids);
+        Ok(())
     }
 }
