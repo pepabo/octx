@@ -162,11 +162,11 @@ async fn main() -> octocrab::Result<()> {
             runner.fetch(wtr).await?;
         } else if args.target_runs {
             info!("Target: runs");
-            let runner = RunFetcher::new(owner, name, octocrab);
+            let runner = RunFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr, args.workflow_file).await?;
         } else if args.target_jobs {
             info!("Target: jobs");
-            let runner = JobFetcher::new(owner, name, octocrab);
+            let runner = JobFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr, args.run_id).await?;
         } else if args.target_reviews {
             info!("Target: reviews");
