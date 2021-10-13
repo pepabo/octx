@@ -1,6 +1,6 @@
 extern crate octocrab;
 use chrono::{DateTime, Utc};
-use octocrab::models::{pulls::ReviewState, User};
+use octocrab::models::User;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +9,7 @@ use crate::*;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct PullRequest {
-    pub id: u64,
+    pub number: u64,
 
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -29,7 +29,7 @@ pub struct Review {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<ReviewState>,
+    pub state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pull_request_url: Option<Url>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -50,12 +50,12 @@ pub struct ReviewRec {
     pub user_id: i64,
     pub body: Option<String>,
     pub commit_id: Option<String>,
-    pub state: Option<ReviewState>,
+    pub state: Option<String>,
     pub pull_request_url: Option<Url>,
     pub submitted_at: Option<chrono::DateTime<chrono::Utc>>,
     pub author_association: Option<String>,
 
-    pub pull_request_number: Option<i64>,
+    pub pull_request_number: Option<u64>,
     pub sdc_repository: String,
 }
 
@@ -119,12 +119,12 @@ impl ReviewFetcher {
         );
         let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
 
-        let mut pull_ids: Vec<u64> = vec![];
+        let mut pull_nums: Vec<u64> = vec![];
         while let Some(mut page) = self.octocrab.get_page(&next).await? {
             let pulls: Vec<PullRequest> = page.take_items();
             let mut last_update: Option<DateTime<Utc>> = None;
             for pull in pulls.into_iter() {
-                pull_ids.push(pull.id);
+                pull_nums.push(pull.number);
                 last_update = Some(pull.updated_at.unwrap_or_else(|| pull.created_at));
             }
 
@@ -139,7 +139,28 @@ impl ReviewFetcher {
             };
         }
 
-        eprintln!("{:?}", pull_ids);
+        for number in pull_nums.into_iter() {
+            let param = Params::default();
+            let route = format!(
+                "repos/{owner}/{repo}/pulls/{pull_number}/reviews?{query}",
+                owner = &self.owner,
+                repo = &self.name,
+                pull_number = number,
+                query = param.to_query(),
+            );
+            let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+            while let Some(mut page) = self.octocrab.get_page(&next).await? {
+                let reviews: Vec<Review> = page.take_items();
+                for review in reviews.into_iter() {
+                    let mut review: ReviewRec = review.into();
+                    review.sdc_repository = format!("{}/{}", self.owner, self.name);
+                    review.pull_request_number = Some(number);
+
+                    wtr.serialize(review).expect("Serialize failed");
+                }
+                next = page.next;
+            }
+        }
         Ok(())
     }
 }

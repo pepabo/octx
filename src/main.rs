@@ -172,7 +172,6 @@ async fn main() -> octocrab::Result<()> {
             info!("Target: reviews");
             let runner = ReviewFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr).await?;
-            unimplemented!("Hola")
         } else {
             error!("No target specified");
         }
