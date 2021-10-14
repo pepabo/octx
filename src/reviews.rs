@@ -129,11 +129,16 @@ impl ReviewFetcher {
             }
 
             next = if let Some(since) = self.since {
-                if last_update.unwrap() < since {
-                    None
-                } else {
-                    page.next
-                }
+                last_update.map_or_else(
+                    || None,
+                    |last| {
+                        if last < since {
+                            None
+                        } else {
+                            page.next
+                        }
+                    },
+                )
             } else {
                 page.next
             };

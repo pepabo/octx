@@ -380,11 +380,16 @@ impl RunFetcher {
         }
 
         if let Some(since) = self.since {
-            if last_update.unwrap() < since {
-                None
-            } else {
-                page.next
-            }
+            last_update.map_or_else(
+                || None,
+                |last| {
+                    if last < since {
+                        None
+                    } else {
+                        page.next
+                    }
+                },
+            )
         } else {
             page.next
         }
@@ -478,6 +483,7 @@ impl JobFetcher {
                 .send()
                 .await?
             {
+                let mut last_update: Option<DateTime> = None;
                 let mut run_url = run_fetcher.entrypoint(Some(workflow.id.to_string()));
                 while let Some(mut page) = self.octocrab.get_page(&run_url).await? {
                     let runs: Vec<Run> = page.take_items();
@@ -486,8 +492,23 @@ impl JobFetcher {
                         while let Some(page) = self.octocrab.get_page(&job_url).await? {
                             job_url = self.write_and_continue(page, &mut wtr);
                         }
+                        last_update = Some(run.updated_at);
                     }
-                    run_url = page.next;
+
+                    run_url = if let Some(since) = self.since {
+                        last_update.map_or_else(
+                            || None,
+                            |last| {
+                                if last < since {
+                                    None
+                                } else {
+                                    page.next
+                                }
+                            },
+                        )
+                    } else {
+                        page.next
+                    };
                 }
             }
         }
