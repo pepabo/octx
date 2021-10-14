@@ -1,10 +1,10 @@
-use std::ops::{Deref, DerefMut};
 use octocrab::models::workflows::{Job, WorkFlow};
 use reqwest::Url;
 use serde::Serialize;
+use std::ops::{Deref, DerefMut};
 
-use crate::*;
 use crate::api_ext::models::*;
+use crate::*;
 
 type DateTime = chrono::DateTime<chrono::Utc>;
 
@@ -91,7 +91,7 @@ pub struct JobStepRec {
 }
 
 #[derive(Serialize, Debug)]
-pub struct JobStepsRec (Vec<JobStepRec>);
+pub struct JobStepsRec(Vec<JobStepRec>);
 
 impl From<WorkFlow> for WorkFlowRec {
     fn from(from: WorkFlow) -> Self {
@@ -236,12 +236,14 @@ pub struct WorkFlowFetcher {
 pub struct RunFetcher {
     owner: String,
     name: String,
+    since: Option<DateTime>,
     octocrab: octocrab::Octocrab,
 }
 
 pub struct JobFetcher {
     owner: String,
     name: String,
+    since: Option<DateTime>,
     pub octocrab: octocrab::Octocrab,
 }
 
@@ -300,11 +302,7 @@ impl LoopWriter for JobStepFetcher {
 }
 
 impl WorkFlowFetcher {
-    pub fn new(
-        owner: String,
-        name: String,
-        octocrab: octocrab::Octocrab,
-    ) -> Self {
+    pub fn new(owner: String, name: String, octocrab: octocrab::Octocrab) -> Self {
         Self {
             owner,
             name,
@@ -327,11 +325,13 @@ impl RunFetcher {
     pub fn new(
         owner: String,
         name: String,
+        since: Option<DateTime>,
         octocrab: octocrab::Octocrab,
     ) -> Self {
         Self {
             owner,
             name,
+            since,
             octocrab,
         }
     }
@@ -353,6 +353,7 @@ impl RunFetcher {
                 query = param.to_query(),
             );
         } else {
+            // FIXME: no way to sort runs by updated_at
             route = format!(
                 "repos/{owner}/{repo}/actions/runs?{query}",
                 owner = &self.owner,
@@ -369,16 +370,37 @@ impl RunFetcher {
         mut page: octocrab::Page<Run>,
         wtr: &mut csv::Writer<T>,
     ) -> Option<reqwest::Url> {
+        let mut last_update: Option<DateTime> = None;
         let labels: Vec<Run> = page.take_items();
         for label in labels.into_iter() {
             let mut label: RunRec = label.into();
             label.set_repository(self.reponame());
             wtr.serialize(&label).expect("Serialize failed");
+
+            last_update = Some(label.updated_at);
         }
-        page.next
+
+        if let Some(since) = self.since {
+            last_update.map_or_else(
+                || None,
+                |last| {
+                    if last < since {
+                        None
+                    } else {
+                        page.next
+                    }
+                },
+            )
+        } else {
+            page.next
+        }
     }
 
-    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>, workflow_id: Option<String>) -> octocrab::Result<()> {
+    pub async fn fetch<T: std::io::Write>(
+        &self,
+        mut wtr: csv::Writer<T>,
+        workflow_id: Option<String>,
+    ) -> octocrab::Result<()> {
         let mut next: Option<Url> = self.entrypoint(workflow_id);
 
         while let Some(page) = self.octocrab.get_page(&next).await? {
@@ -393,11 +415,13 @@ impl JobFetcher {
     pub fn new(
         owner: String,
         name: String,
+        since: Option<DateTime>,
         octocrab: octocrab::Octocrab,
     ) -> Self {
         Self {
             owner,
             name,
+            since,
             octocrab,
         }
     }
@@ -435,7 +459,11 @@ impl JobFetcher {
         page.next
     }
 
-    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>, run_id: Option<String>) -> octocrab::Result<()> {
+    pub async fn fetch<T: std::io::Write>(
+        &self,
+        mut wtr: csv::Writer<T>,
+        run_id: Option<String>,
+    ) -> octocrab::Result<()> {
         if let Some(run_id_) = run_id {
             let mut next: Option<Url> = self.entrypoint(run_id_);
 
@@ -443,8 +471,20 @@ impl JobFetcher {
                 next = self.write_and_continue(page, &mut wtr);
             }
         } else {
-            let run_fetcher = RunFetcher::new(self.owner.clone(), self.name.clone(), self.octocrab.clone());
-            for workflow in self.octocrab.workflows(&self.owner, &self.name).list().send().await? {
+            let run_fetcher = RunFetcher::new(
+                self.owner.clone(),
+                self.name.clone(),
+                self.since.clone(),
+                self.octocrab.clone(),
+            );
+            for workflow in self
+                .octocrab
+                .workflows(&self.owner, &self.name)
+                .list()
+                .send()
+                .await?
+            {
+                let mut last_update: Option<DateTime> = None;
                 let mut run_url = run_fetcher.entrypoint(Some(workflow.id.to_string()));
                 while let Some(mut page) = self.octocrab.get_page(&run_url).await? {
                     let runs: Vec<Run> = page.take_items();
@@ -453,12 +493,27 @@ impl JobFetcher {
                         while let Some(page) = self.octocrab.get_page(&job_url).await? {
                             job_url = self.write_and_continue(page, &mut wtr);
                         }
+                        last_update = Some(run.updated_at);
                     }
-                    run_url = page.next;
+
+                    run_url = if let Some(since) = self.since {
+                        last_update.map_or_else(
+                            || None,
+                            |last| {
+                                if last < since {
+                                    None
+                                } else {
+                                    page.next
+                                }
+                            },
+                        )
+                    } else {
+                        page.next
+                    };
                 }
             }
         }
-                
+
         Ok(())
     }
 }
