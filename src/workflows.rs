@@ -353,6 +353,7 @@ impl RunFetcher {
                 query = param.to_query(),
             );
         } else {
+            // FIXME: no way to sort runs by updated_at
             route = format!(
                 "repos/{owner}/{repo}/actions/runs?{query}",
                 owner = &self.owner,
