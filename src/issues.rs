@@ -48,6 +48,10 @@ impl RepositryAware for IssueRec {
 impl From<Issue> for IssueRec {
     fn from(from: Issue) -> IssueRec {
         let labels = from.labels;
+        let labels = labels
+            .iter()
+            .map(|v| v.name.clone())
+            .collect::<Vec<String>>();
         let assignees = from.assignees;
 
         IssueRec {
@@ -66,11 +70,7 @@ impl From<Issue> for IssueRec {
             body_text: from.body_text,
             body_html: from.body_html,
             user_id: from.user.id,
-            labels: labels
-                .iter()
-                .map(|v| v.name.clone())
-                .collect::<Vec<String>>()
-                .join(" "),
+            labels: serde_json::to_string(&labels).unwrap_or("[]".to_string()),
             assignee_id: match from.assignee {
                 Some(user) => Some(user.id),
                 None => None,
