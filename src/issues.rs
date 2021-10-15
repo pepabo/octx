@@ -162,3 +162,33 @@ impl IssueFetcher {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use octocrab::models::issues::Issue;
+
+    #[test]
+    fn test_convert_issue_model() -> Result<(), Box<dyn std::error::Error>> {
+        let model: Issue = serde_json::from_str(include_str!("../testdata/issue.json"))?;
+
+        let record: IssueRec = model.into();
+
+        assert_eq!(record.id, 1);
+        assert_eq!(
+            record.url,
+            Url::parse("https://api.github.com/repos/octocat/Hello-World/issues/1347").unwrap()
+        );
+        assert_eq!(record.title, "Found a bug".to_string());
+
+        assert_eq!(
+            record.labels,
+            "[\"bug\",\"security\",\"needs review\"]".to_string()
+        );
+        assert_eq!(record.user_id, 1);
+        assert_eq!(record.assignee_id, Some(1));
+        assert_eq!(record.assignees, "octocat,udzura".to_string());
+
+        Ok(())
+    }
+}
