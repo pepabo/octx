@@ -48,6 +48,10 @@ impl RepositryAware for IssueRec {
 impl From<Issue> for IssueRec {
     fn from(from: Issue) -> IssueRec {
         let labels = from.labels;
+        let labels = labels
+            .iter()
+            .map(|v| v.name.clone())
+            .collect::<Vec<String>>();
         let assignees = from.assignees;
 
         IssueRec {
@@ -66,11 +70,7 @@ impl From<Issue> for IssueRec {
             body_text: from.body_text,
             body_html: from.body_html,
             user_id: from.user.id,
-            labels: labels
-                .iter()
-                .map(|v| v.name.clone())
-                .collect::<Vec<String>>()
-                .join(" "),
+            labels: serde_json::to_string(&labels).unwrap_or("[]".to_string()),
             assignee_id: match from.assignee {
                 Some(user) => Some(user.id),
                 None => None,
@@ -158,6 +158,36 @@ impl IssueFetcher {
         while let Some(page) = self.octocrab.get_page(&next).await? {
             next = self.write_and_continue(page, &mut wtr);
         }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use octocrab::models::issues::Issue;
+
+    #[test]
+    fn test_convert_issue_model() -> Result<(), Box<dyn std::error::Error>> {
+        let model: Issue = serde_json::from_str(include_str!("../testdata/issue.json"))?;
+
+        let record: IssueRec = model.into();
+
+        assert_eq!(record.id, 1);
+        assert_eq!(
+            record.url,
+            Url::parse("https://api.github.com/repos/octocat/Hello-World/issues/1347").unwrap()
+        );
+        assert_eq!(record.title, "Found a bug".to_string());
+
+        assert_eq!(
+            record.labels,
+            "[\"bug\",\"security\",\"needs review\"]".to_string()
+        );
+        assert_eq!(record.user_id, 1);
+        assert_eq!(record.assignee_id, Some(1));
+        assert_eq!(record.assignees, "octocat,udzura".to_string());
 
         Ok(())
     }
