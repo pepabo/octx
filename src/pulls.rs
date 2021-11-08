@@ -172,4 +172,54 @@ impl PullFileFetcher {
 
         Ok(())
     }
+
+    pub async fn fetch_commits<T: std::io::Write>(
+        &self,
+        mut wtr: csv::Writer<T>,
+    ) -> octocrab::Result<()> {
+        let param = Params::default();
+        let route = format!(
+            "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
+            owner = &self.owner,
+            repo = &self.name,
+            query = param.to_query(),
+        );
+        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+
+        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+            let pulls: Vec<PullRequest> = page.take_items();
+            let mut last_update: Option<DateTime<Utc>> = None;
+            for pull in pulls.into_iter() {
+                let route = format!(
+                    "repos/{owner}/{repo}/pulls/{number}/commits",
+                    owner = &self.owner,
+                    repo = &self.name,
+                    number = pull.number,
+                );
+                let commits_url: Url = self.octocrab.absolute_url(route).unwrap();
+                let commits: Vec<Commit> = self.octocrab.get(&commits_url, None::<&()>).await?;
+                for commit in commits.into_iter() {
+                    let mut commit: PrCommitRec = commit.into();
+                    commit.pull_request_number = pull.number.into();
+                    commit.set_repository(format!("{}/{}", self.owner, self.name));
+
+                    wtr.serialize(commit).expect("Serialize failed");
+                }
+
+                last_update = Some(pull.updated_at.unwrap_or_else(|| pull.created_at));
+            }
+
+            next = if let Some(since) = self.since {
+                if last_update.unwrap() < since {
+                    None
+                } else {
+                    page.next
+                }
+            } else {
+                page.next
+            };
+        }
+
+        Ok(())
+    }
 }
