@@ -52,6 +52,9 @@ struct Command {
     /// Extract Files included in pull requests
     #[structopt(long = "pull-request-files")]
     target_pull_files: bool,
+    /// Extract Commits included in pull requests
+    #[structopt(long = "pull-request-commits")]
+    target_pull_commits: bool,
     /// Extract workflows
     #[structopt(long = "workflows")]
     target_workflows: bool,
@@ -97,7 +100,7 @@ async fn main() -> octocrab::Result<()> {
     let config: Env = envy::from_env()
         .context("while reading from environment")
         .unwrap();
-    let args = Command::from_args();
+    let args: Command = Command::from_args();
     let octocrab = octocrab::OctocrabBuilder::new()
         .personal_token(config.github_api_token)
         .base_url(&config.github_api_url)?
@@ -148,6 +151,10 @@ async fn main() -> octocrab::Result<()> {
             info!("Target: pull files");
             let runner = PullFileFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr).await?;
+        } else if args.target_pull_commits {
+            info!("Target: pull commits");
+            let runner = PullFileFetcher::new(owner, name, since, octocrab);
+            runner.fetch_commits(wtr).await?;
         } else if args.target_labels {
             info!("Target: labels");
             let runner = LabelFetcher::new(owner, name, octocrab);
