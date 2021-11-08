@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use reqwest::Url;
 use serde::*;
 
+//use crate::commits::{Commit, GitCommit, GitUser, Object, UserId};
+use crate::commits::Commit;
 use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -30,6 +32,74 @@ pub struct PullRequestFile {
 
     pub pull_request_number: Option<u64>,
     pub sdc_repository: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct PrCommitRec {
+    pub sha: Option<String>,
+    pub node_id: Option<String>,
+    pub url: Option<String>,
+    pub html_url: Option<String>,
+    pub comments_url: Option<String>,
+    pub author_id: Option<i64>,
+    pub committer_id: Option<i64>,
+    pub author: Option<String>,    // Vec.to_json
+    pub committer: Option<String>, // Vec.to_json
+    pub parents: String,           // Vec.to_json
+    pub message: Option<String>,
+    pub authorized_at: Option<DateTime<Utc>>,
+    pub committed_at: Option<DateTime<Utc>>,
+    pub comment_count: i32,
+
+    pub pull_request_number: Option<u64>,
+
+    pub sdc_repository: String,
+}
+
+impl RepositryAware for PrCommitRec {
+    fn set_repository(&mut self, name: String) {
+        self.sdc_repository = name;
+    }
+}
+
+impl From<Commit> for PrCommitRec {
+    fn from(from: Commit) -> Self {
+        Self {
+            sha: from.sha,
+            node_id: from.node_id,
+            url: from.url,
+            html_url: from.html_url,
+            comments_url: from.comments_url,
+            author_id: from.author.map(|u| u.id).flatten(),
+            committer_id: from.committer.map(|u| u.id).flatten(),
+            author: from
+                .commit
+                .author
+                .as_ref()
+                .map(|d| serde_json::to_string(d).ok())
+                .flatten(),
+            committer: from
+                .commit
+                .committer
+                .as_ref()
+                .map(|d| serde_json::to_string(d).ok())
+                .flatten(),
+            parents: from
+                .parents
+                .iter()
+                .map(|v| v.sha.to_owned())
+                .collect::<Vec<String>>()
+                .join(" "),
+            message: from.commit.message,
+            authorized_at: from.commit.author.as_ref().map(|a| a.date),
+            committed_at: from.commit.committer.as_ref().map(|a| a.date),
+            comment_count: from.commit.comment_count,
+
+            pull_request_number: None,
+
+            sdc_repository: String::default(),
+        }
+    }
 }
 
 pub struct PullFileFetcher {

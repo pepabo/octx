@@ -27,13 +27,13 @@ pub struct Commit {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserId {
-    id: Option<i64>,
+    pub id: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Object {
-    sha: String,
-    url: Url,
+    pub sha: String,
+    pub url: Url,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
