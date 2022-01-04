@@ -1,6 +1,6 @@
 use super::*;
 
-use octocrab::models::{issues, ProjectCard, User};
+use octocrab::models::{issues, User};
 use reqwest::Url;
 use serde::*;
 type DateTime = chrono::DateTime<chrono::Utc>;
@@ -10,6 +10,24 @@ type DateTime = chrono::DateTime<chrono::Utc>;
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MilestonePartial {
     pub title: String,
+}
+
+// Copied from octocrab::models::ProjectCard to fix null value
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct ProjectCard {
+    pub id: u64,
+    pub url: Url,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_url: Option<Url>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_column_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column_url: Option<Url>,
 }
 
 // Copied from octocrab::models::IssueEvent
