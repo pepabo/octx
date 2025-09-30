@@ -7,3 +7,4 @@
   changelog = true
   command = "cargo update -p octx"
   release = draft
+	releaseBranch = master
