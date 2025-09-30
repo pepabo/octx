@@ -10,7 +10,7 @@ description = "GitHub query & extracter (Enterprise ready)"
 edition = "2018"
 
 [dependencies]
-url = "^0"
+url = "^2.0"
 chrono = { version = "^0.4", features = ["serde"] }
 anyhow = "1.0"
 # octocrab = { path = "../../XAMPPRocky/octocrab", default-features = false }
