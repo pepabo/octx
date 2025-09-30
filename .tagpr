@@ -1,0 +1,9 @@
+# tagpr configuration for octx
+# Automatically updates version in Cargo.toml and creates draft releases
+
+[tagpr]
+  vPrefix = false
+  versionFile = "Cargo.toml"
+  changelog = true
+  command = "cargo update -p octx"
+  release = draft
