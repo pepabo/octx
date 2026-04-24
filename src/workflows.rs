@@ -265,7 +265,7 @@ impl UrlConstructor for WorkFlowFetcher {
         let param = Params::default();
 
         format!(
-            "repos/{owner}/{repo}/actions/workflows?{query}",
+            "/repos/{owner}/{repo}/actions/workflows?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
@@ -282,7 +282,7 @@ impl UrlConstructor for JobStepFetcher {
         let param = Params::default();
 
         format!(
-            "repos/{owner}/{repo}/actions/jobs/{job_id}?{query}",
+            "/repos/{owner}/{repo}/actions/jobs/{job_id}?{query}",
             owner = &self.owner,
             repo = &self.name,
             job_id = &self.job_id,
@@ -349,7 +349,7 @@ impl RunFetcher {
 
         if let Some(workflow_id_) = workflow_id {
             format!(
-                "repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs?{query}",
+                "/repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs?{query}",
                 owner = &self.owner,
                 repo = &self.name,
                 workflow_id = &workflow_id_,
@@ -358,7 +358,7 @@ impl RunFetcher {
         } else {
             // FIXME: no way to sort runs by updated_at
             format!(
-                "repos/{owner}/{repo}/actions/runs?{query}",
+                "/repos/{owner}/{repo}/actions/runs?{query}",
                 owner = &self.owner,
                 repo = &self.name,
                 query = param.to_query(),
@@ -441,7 +441,7 @@ impl JobFetcher {
             ..Default::default()
         };
         format!(
-            "repos/{owner}/{repo}/actions/runs/{run_id}/jobs?{query}",
+            "/repos/{owner}/{repo}/actions/runs/{run_id}/jobs?{query}",
             owner = &self.owner,
             repo = &self.name,
             run_id = &run_id,

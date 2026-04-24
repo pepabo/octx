@@ -82,7 +82,7 @@ impl UrlConstructor for CommentFetcher {
         };
 
         format!(
-            "repos/{owner}/{repo}/issues/comments?{query}",
+            "/repos/{owner}/{repo}/issues/comments?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),

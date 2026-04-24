@@ -116,7 +116,7 @@ impl UrlConstructor for ReleaseFetcher {
         let param = Params::default();
 
         format!(
-            "repos/{owner}/{repo}/releases?{query}",
+            "/repos/{owner}/{repo}/releases?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),

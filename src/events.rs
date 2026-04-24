@@ -160,7 +160,7 @@ impl UrlConstructor for IssueEventFetcher {
         let param = Params::default();
 
         format!(
-            "repos/{owner}/{repo}/issues/events?{query}",
+            "/repos/{owner}/{repo}/issues/events?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),

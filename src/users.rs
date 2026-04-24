@@ -73,7 +73,7 @@ impl UrlConstructor for UserFetcher {
     fn entrypoint_route(&self) -> String {
         let param = Params::default();
 
-        format!("users?{query}", query = param.to_query())
+        format!("/users?{query}", query = param.to_query())
     }
 }
 

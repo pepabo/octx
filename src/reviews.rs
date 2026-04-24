@@ -112,7 +112,7 @@ impl ReviewFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
         let param = Params::default();
         let pulls_route = format!(
-            "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
+            "/repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
@@ -150,7 +150,7 @@ impl ReviewFetcher {
         for number in pull_nums.into_iter() {
             let param = Params::default();
             let reviews_route = format!(
-                "repos/{owner}/{repo}/pulls/{pull_number}/reviews?{query}",
+                "/repos/{owner}/{repo}/pulls/{pull_number}/reviews?{query}",
                 owner = &self.owner,
                 repo = &self.name,
                 pull_number = number,
