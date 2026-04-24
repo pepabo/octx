@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
 use octocrab::models::Author as User;
 use url::Url;
@@ -55,7 +57,12 @@ impl UserDetailedFetcher {
         while let Some(mut page) = page_opt {
             let users: Vec<User> = page.take_items();
             for user in users.into_iter() {
-                let detail: UserDeailed = self.octocrab.get(&user.url, None::<&()>).await?;
+                let user_route = http::Uri::from_str(user.url.as_str())
+                    .map(to_relative_uri)
+                    .map(|u| u.to_string())
+                    .unwrap_or_else(|_| user.url.to_string());
+                let detail: UserDeailed =
+                    self.octocrab.get(user_route, None::<&()>).await?;
                 wtr.serialize(&detail).expect("Serialize failed");
             }
             let next = page.next.map(to_relative_uri);
