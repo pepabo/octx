@@ -13,10 +13,11 @@ jobs:
       matrix:
         target: [x86_64-unknown-linux-musl]
     steps:
-      - uses: actions/checkout@master
-      - name: Compile and release
-        uses: Douile/rust-build.action@v0.1.26
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUSTTARGET: ${{ matrix.target }}
-          EXTRA_FILES: "README.md LICENSE"
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Upload binary to release
+        uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6  # v1.30.2
+        with:
+          bin: octx
+          target: ${{ matrix.target }}
+          include: README.md,LICENSE
+          token: ${{ secrets.GITHUB_TOKEN }}
