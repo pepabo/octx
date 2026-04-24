@@ -138,7 +138,7 @@ impl UrlConstructor for IssueFetcher {
         };
 
         format!(
-            "repos/{owner}/{repo}/issues?{query}",
+            "/repos/{owner}/{repo}/issues?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),

@@ -48,7 +48,7 @@ impl UserDetailedFetcher {
 impl UserDetailedFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
         let param = Params::default();
-        let route = format!("users?{query}", query = param.to_query());
+        let route = format!("/users?{query}", query = param.to_query());
         let first: octocrab::Page<User> = self.octocrab.get(&route, None::<&()>).await?;
         let mut page_opt = Some(first);
 

@@ -64,7 +64,7 @@ impl UrlConstructor for LabelFetcher {
         let param = Params::default();
 
         format!(
-            "repos/{owner}/{repo}/labels?{query}",
+            "/repos/{owner}/{repo}/labels?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
