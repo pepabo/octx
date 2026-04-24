@@ -194,10 +194,10 @@ impl IssueEventFetcher {
                 if last_update.unwrap() < since {
                     None
                 } else {
-                    page.next
+                    page.next.map(to_relative_uri)
                 }
             } else {
-                page.next
+                page.next.map(to_relative_uri)
             };
             page_opt = self.octocrab.get_page(&next).await?;
         }

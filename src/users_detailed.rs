@@ -58,7 +58,8 @@ impl UserDetailedFetcher {
                 let detail: UserDeailed = self.octocrab.get(&user.url, None::<&()>).await?;
                 wtr.serialize(&detail).expect("Serialize failed");
             }
-            page_opt = self.octocrab.get_page(&page.next).await?;
+            let next = page.next.map(to_relative_uri);
+            page_opt = self.octocrab.get_page(&next).await?;
         }
 
         Ok(())
