@@ -27,7 +27,7 @@ use octx::{
 
     B) GitHub App installation token (auto-refreshed):
        GITHUB_APP_ID: numeric App ID
-       GITHUB_APP_PRIVATE_KEY: RSA PEM body (multi-line)
+       GITHUB_APP_PRIVATE_KEY_PATH: path to the RSA private key file (PEM)
        GITHUB_APP_INSTALLATION_ID: numeric installation ID
 
 EXAMPLE:
@@ -102,7 +102,7 @@ struct Env {
     github_api_token: Option<String>,
     github_api_url: String,
     github_app_id: Option<u64>,
-    github_app_private_key: Option<String>,
+    github_app_private_key_path: Option<String>,
     github_app_installation_id: Option<u64>,
 }
 
@@ -117,13 +117,16 @@ async fn main() -> octocrab::Result<()> {
     let octocrab = match (
         config.github_api_token,
         config.github_app_id,
-        config.github_app_private_key,
+        config.github_app_private_key_path,
         config.github_app_installation_id,
     ) {
         (Some(token), None, None, None) => builder.personal_token(token).build()?,
-        (None, Some(app_id), Some(pem), Some(installation_id)) => {
-            let key = jsonwebtoken::EncodingKey::from_rsa_pem(pem.as_bytes())
-                .context("while parsing GITHUB_APP_PRIVATE_KEY as RSA PEM")
+        (None, Some(app_id), Some(key_path), Some(installation_id)) => {
+            let pem = std::fs::read(&key_path)
+                .with_context(|| format!("while reading GITHUB_APP_PRIVATE_KEY_PATH={}", key_path))
+                .unwrap();
+            let key = jsonwebtoken::EncodingKey::from_rsa_pem(&pem)
+                .context("while parsing the private key file as RSA PEM")
                 .unwrap();
             builder
                 .app(octocrab::models::AppId(app_id), key)
@@ -132,7 +135,7 @@ async fn main() -> octocrab::Result<()> {
         }
         _ => panic!(
             "set either GITHUB_API_TOKEN or all of \
-             GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID"
+             GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY_PATH, GITHUB_APP_INSTALLATION_ID"
         ),
     };
 
