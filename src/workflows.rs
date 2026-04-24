@@ -1,5 +1,5 @@
 use octocrab::models::workflows::{Job, WorkFlow};
-use reqwest::Url;
+use url::Url;
 use serde::Serialize;
 use std::ops::{Deref, DerefMut};
 
@@ -58,7 +58,7 @@ pub struct JobRec {
     pub url: Url,
     pub html_url: Url,
     pub run_url: Url,
-    pub check_run_url: Url,
+    pub check_run_url: String,
     pub steps: String,
 
     pub sdc_repository: String,
@@ -78,13 +78,13 @@ pub struct JobStepRec {
     pub job_url: Url,
     pub job_html_url: Url,
     pub run_url: Url,
-    pub check_run_url: Url,
+    pub check_run_url: String,
 
     pub name: String,
     pub status: String, // TODO: to_enum
     pub conclusion: Option<String>,
     pub number: i64,
-    pub started_at: DateTime,
+    pub started_at: Option<DateTime>,
     pub completed_at: Option<DateTime>,
 
     pub sdc_repository: String,
@@ -96,7 +96,7 @@ pub struct JobStepsRec(Vec<JobStepRec>);
 impl From<WorkFlow> for WorkFlowRec {
     fn from(from: WorkFlow) -> Self {
         Self {
-            id: from.id,
+            id: from.id.0 as i64,
             node_id: from.node_id,
             name: from.name,
             path: from.path,
@@ -136,12 +136,12 @@ impl From<Run> for RunRec {
 impl From<Job> for JobRec {
     fn from(from: Job) -> Self {
         Self {
-            id: from.id,
-            run_id: from.run_id,
+            id: from.id.0 as i64,
+            run_id: from.run_id.0 as i64,
             node_id: from.node_id,
             head_sha: from.head_sha,
-            status: from.status,
-            conclusion: from.conclusion,
+            status: enum_to_string(&from.status),
+            conclusion: from.conclusion.as_ref().map(enum_to_string),
             started_at: from.started_at,
             completed_at: from.completed_at,
             name: from.name,
@@ -171,14 +171,16 @@ impl DerefMut for JobStepsRec {
 impl From<Job> for JobStepsRec {
     fn from(from: Job) -> JobStepsRec {
         let mut ret = JobStepsRec(Vec::<JobStepRec>::new());
+        let job_status = enum_to_string(&from.status);
+        let job_conclusion = from.conclusion.as_ref().map(enum_to_string);
         for step in from.steps.into_iter() {
             ret.push(JobStepRec {
-                job_id: from.id,
-                run_id: from.run_id,
+                job_id: from.id.0 as i64,
+                run_id: from.run_id.0 as i64,
                 job_node_id: from.node_id.clone(),
                 head_sha: from.head_sha.clone(),
-                job_status: from.status.clone(),
-                job_conclusion: from.conclusion.clone(),
+                job_status: job_status.clone(),
+                job_conclusion: job_conclusion.clone(),
                 job_started_at: from.started_at.clone(),
                 job_completed_at: from.completed_at.clone(),
                 job_name: from.name.clone(),
@@ -188,8 +190,8 @@ impl From<Job> for JobStepsRec {
                 check_run_url: from.check_run_url.clone(),
 
                 name: step.name,
-                status: step.status,
-                conclusion: step.conclusion,
+                status: enum_to_string(&step.status),
+                conclusion: step.conclusion.as_ref().map(enum_to_string),
                 number: step.number,
                 started_at: step.started_at,
                 completed_at: step.completed_at,
@@ -263,7 +265,7 @@ impl UrlConstructor for WorkFlowFetcher {
         let param = Params::default();
 
         format!(
-            "repos/{owner}/{repo}/actions/workflows?{query}",
+            "/repos/{owner}/{repo}/actions/workflows?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
@@ -280,7 +282,7 @@ impl UrlConstructor for JobStepFetcher {
         let param = Params::default();
 
         format!(
-            "repos/{owner}/{repo}/actions/jobs/{job_id}?{query}",
+            "/repos/{owner}/{repo}/actions/jobs/{job_id}?{query}",
             owner = &self.owner,
             repo = &self.name,
             job_id = &self.job_id,
@@ -347,7 +349,7 @@ impl RunFetcher {
 
         if let Some(workflow_id_) = workflow_id {
             format!(
-                "repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs?{query}",
+                "/repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs?{query}",
                 owner = &self.owner,
                 repo = &self.name,
                 workflow_id = &workflow_id_,
@@ -356,7 +358,7 @@ impl RunFetcher {
         } else {
             // FIXME: no way to sort runs by updated_at
             format!(
-                "repos/{owner}/{repo}/actions/runs?{query}",
+                "/repos/{owner}/{repo}/actions/runs?{query}",
                 owner = &self.owner,
                 repo = &self.name,
                 query = param.to_query(),
@@ -368,7 +370,7 @@ impl RunFetcher {
         &self,
         mut page: octocrab::Page<Run>,
         wtr: &mut csv::Writer<T>,
-    ) -> Option<reqwest::Url> {
+    ) -> Option<http::Uri> {
         let mut last_update: Option<DateTime> = None;
         let labels: Vec<Run> = page.take_items();
         for label in labels.into_iter() {
@@ -439,7 +441,7 @@ impl JobFetcher {
             ..Default::default()
         };
         format!(
-            "repos/{owner}/{repo}/actions/runs/{run_id}/jobs?{query}",
+            "/repos/{owner}/{repo}/actions/runs/{run_id}/jobs?{query}",
             owner = &self.owner,
             repo = &self.name,
             run_id = &run_id,
@@ -451,7 +453,7 @@ impl JobFetcher {
         &self,
         mut page: octocrab::Page<Job>,
         wtr: &mut csv::Writer<T>,
-    ) -> Option<reqwest::Url> {
+    ) -> Option<http::Uri> {
         let labels: Vec<Job> = page.take_items();
         for label in labels.into_iter() {
             let mut label: JobRec = label.into();

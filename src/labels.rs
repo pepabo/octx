@@ -1,5 +1,5 @@
 use octocrab::models::*;
-use reqwest::Url;
+use url::Url;
 use serde::*;
 
 use crate::*;
@@ -26,7 +26,7 @@ impl RepositryAware for LabelRec {
 impl From<Label> for LabelRec {
     fn from(from: Label) -> Self {
         Self {
-            id: from.id,
+            id: from.id.0 as i64,
             node_id: from.node_id,
             url: from.url,
             name: from.name,
@@ -64,7 +64,7 @@ impl UrlConstructor for LabelFetcher {
         let param = Params::default();
 
         format!(
-            "repos/{owner}/{repo}/labels?{query}",
+            "/repos/{owner}/{repo}/labels?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),

@@ -1,7 +1,7 @@
 extern crate octocrab;
 use chrono::{DateTime, Utc};
-use octocrab::models::User;
-use reqwest::Url;
+use octocrab::models::Author as User;
+use url::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::*;
@@ -71,7 +71,7 @@ impl From<Review> for ReviewRec {
             id: from.id,
             node_id: from.node_id,
             html_url: from.html_url,
-            user_id: from.user.id,
+            user_id: from.user.id.0 as i64,
             body: from.body,
             commit_id: from.commit_id,
             state: from.state,
@@ -112,7 +112,7 @@ impl ReviewFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
         let param = Params::default();
         let pulls_route = format!(
-            "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
+            "/repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
@@ -150,7 +150,7 @@ impl ReviewFetcher {
         for number in pull_nums.into_iter() {
             let param = Params::default();
             let reviews_route = format!(
-                "repos/{owner}/{repo}/pulls/{pull_number}/reviews?{query}",
+                "/repos/{owner}/{repo}/pulls/{pull_number}/reviews?{query}",
                 owner = &self.owner,
                 repo = &self.name,
                 pull_number = number,

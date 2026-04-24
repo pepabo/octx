@@ -1,5 +1,5 @@
-use octocrab::models::User;
-use reqwest::Url;
+use octocrab::models::Author as User;
+use url::Url;
 use serde::*;
 
 use crate::*;
@@ -34,7 +34,7 @@ impl From<User> for UserRec {
     fn from(from: User) -> UserRec {
         Self {
             login: from.login,
-            id: from.id,
+            id: from.id.0 as i64,
             node_id: from.node_id,
             avatar_url: from.avatar_url,
             gravatar_id: from.gravatar_id,
@@ -73,7 +73,7 @@ impl UrlConstructor for UserFetcher {
     fn entrypoint_route(&self) -> String {
         let param = Params::default();
 
-        format!("users?{query}", query = param.to_query())
+        format!("/users?{query}", query = param.to_query())
     }
 }
 

@@ -1,4 +1,4 @@
-use reqwest::Url;
+use url::Url;
 use serde::*;
 
 use crate::*;
@@ -142,7 +142,7 @@ impl UrlConstructor for CommitFetcher {
         };
 
         format!(
-            "repos/{owner}/{repo}/commits?{query}",
+            "/repos/{owner}/{repo}/commits?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),

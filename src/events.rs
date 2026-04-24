@@ -1,7 +1,7 @@
 use super::*;
 
-use octocrab::models::{issues, User};
-use reqwest::Url;
+use octocrab::models::{issues, Author};
+use url::Url;
 use serde::*;
 type DateTime = chrono::DateTime<chrono::Utc>;
 
@@ -43,15 +43,15 @@ pub struct IssueEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub actor: Option<User>,
+    pub actor: Option<Author>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub assignee: Option<User>,
+    pub assignee: Option<Author>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub assigner: Option<User>,
+    pub assigner: Option<Author>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub review_requester: Option<User>,
+    pub review_requester: Option<Author>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub requested_reviewer: Option<User>,
+    pub requested_reviewer: Option<Author>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<Label>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -109,19 +109,19 @@ impl From<IssueEvent> for EventRec {
             id: from.id,
             node_id: from.node_id,
             url: from.url,
-            actor_id: from.actor.map(|u| u.id),
+            actor_id: from.actor.map(|u| u.id.0 as i64),
             event: from.event,
-            assignee_id: from.assignee.map(|u| u.id),
-            assigner_id: from.assigner.map(|u| u.id),
-            review_requester_id: from.review_requester.map(|u| u.id),
-            requested_reviewer_id: from.requested_reviewer.map(|u| u.id),
+            assignee_id: from.assignee.map(|u| u.id.0 as i64),
+            assigner_id: from.assigner.map(|u| u.id.0 as i64),
+            review_requester_id: from.review_requester.map(|u| u.id.0 as i64),
+            requested_reviewer_id: from.requested_reviewer.map(|u| u.id.0 as i64),
             label: from.label.map(|l| l.name),
             milestone_title: from.milestone.map(|m| m.title),
             project_card_url: from.project_card.map(|p| p.url),
             commit_id: from.commit_id,
             commit_url: from.commit_url,
             created_at: from.created_at,
-            issue_id: from.issue.id,
+            issue_id: from.issue.id.0 as i64,
 
             sdc_repository: String::default(),
         }
@@ -160,7 +160,7 @@ impl UrlConstructor for IssueEventFetcher {
         let param = Params::default();
 
         format!(
-            "repos/{owner}/{repo}/issues/events?{query}",
+            "/repos/{owner}/{repo}/issues/events?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),

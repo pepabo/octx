@@ -1,7 +1,7 @@
 pub mod models {
     use octocrab::models::workflows::HeadCommit;
     use octocrab::models::events::Repository;
-    use reqwest::Url;
+    use url::Url;
     use serde::*;
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

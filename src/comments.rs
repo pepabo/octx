@@ -1,5 +1,5 @@
 use octocrab::models::issues::*;
-use reqwest::Url;
+use url::Url;
 use serde::*;
 
 use crate::*;
@@ -31,14 +31,14 @@ impl RepositryAware for CommentRec {
 impl From<Comment> for CommentRec {
     fn from(from: Comment) -> CommentRec {
         CommentRec {
-            id: from.id,
+            id: from.id.0,
             node_id: from.node_id,
             url: from.url,
             html_url: from.html_url,
             body: from.body,
             body_text: from.body_text,
             body_html: from.body_html,
-            user_id: from.user.id,
+            user_id: from.user.id.0 as i64,
             created_at: from.created_at,
             updated_at: from.updated_at,
 
@@ -82,7 +82,7 @@ impl UrlConstructor for CommentFetcher {
         };
 
         format!(
-            "repos/{owner}/{repo}/issues/comments?{query}",
+            "/repos/{owner}/{repo}/issues/comments?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),

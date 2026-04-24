@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use reqwest::Url;
+use url::Url;
 use serde::*;
 
 //use crate::commits::{Commit, GitCommit, GitUser, Object, UserId};
@@ -129,7 +129,7 @@ impl PullFileFetcher {
     fn pulls_route(&self) -> String {
         let param = Params::default();
         format!(
-            "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
+            "/repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
@@ -146,7 +146,7 @@ impl PullFileFetcher {
             let mut last_update: Option<DateTime<Utc>> = None;
             for pull in pulls.into_iter() {
                 let files_route = format!(
-                    "repos/{owner}/{repo}/pulls/{number}/files",
+                    "/repos/{owner}/{repo}/pulls/{number}/files",
                     owner = &self.owner,
                     repo = &self.name,
                     number = pull.number,
@@ -191,7 +191,7 @@ impl PullFileFetcher {
             let mut last_update: Option<DateTime<Utc>> = None;
             for pull in pulls.into_iter() {
                 let commits_route = format!(
-                    "repos/{owner}/{repo}/pulls/{number}/commits",
+                    "/repos/{owner}/{repo}/pulls/{number}/commits",
                     owner = &self.owner,
                     repo = &self.name,
                     number = pull.number,
