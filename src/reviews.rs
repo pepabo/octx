@@ -137,12 +137,12 @@ impl ReviewFetcher {
                         if last < since {
                             None
                         } else {
-                            page.next
+                            page.next.map(to_relative_uri)
                         }
                     },
                 )
             } else {
-                page.next
+                page.next.map(to_relative_uri)
             };
             page_opt = self.octocrab.get_page(&next).await?;
         }
@@ -168,7 +168,8 @@ impl ReviewFetcher {
 
                     wtr.serialize(review).expect("Serialize failed");
                 }
-                page_opt = self.octocrab.get_page(&page.next).await?;
+                let next = page.next.map(to_relative_uri);
+                page_opt = self.octocrab.get_page(&next).await?;
             }
         }
         Ok(())

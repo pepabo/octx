@@ -55,6 +55,20 @@ pub fn enum_to_string<T: serde::Serialize>(value: &T) -> String {
         .to_string()
 }
 
+// Drop scheme and authority from a pagination URI returned via GitHub's
+// `Link` header so octocrab's execute() treats it as a relative request.
+// GHES + App installation: octocrab only attaches the installation Bearer
+// token when the request authority is empty or exactly `api.github.com`,
+// so the absolute URL from `page.next` would otherwise be sent without
+// Authorization and fail with 401/403 on page 2+.
+pub fn to_relative_uri(uri: http::Uri) -> http::Uri {
+    use std::str::FromStr;
+    match uri.path_and_query() {
+        Some(paq) => http::Uri::from_str(paq.as_str()).unwrap_or(uri),
+        None => uri,
+    }
+}
+
 pub trait UrlConstructor {
     fn reponame(&self) -> String;
 
@@ -76,6 +90,6 @@ pub trait LoopWriter: UrlConstructor {
             label.set_repository(self.reponame());
             wtr.serialize(&label).expect("Serialize failed");
         }
-        page.next
+        page.next.map(to_relative_uri)
     }
 }

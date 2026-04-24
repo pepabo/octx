@@ -388,12 +388,12 @@ impl RunFetcher {
                     if last < since {
                         None
                     } else {
-                        page.next
+                        page.next.map(to_relative_uri)
                     }
                 },
             )
         } else {
-            page.next
+            page.next.map(to_relative_uri)
         }
     }
 
@@ -460,7 +460,7 @@ impl JobFetcher {
             label.set_repository(self.reponame());
             wtr.serialize(&label).expect("Serialize failed");
         }
-        page.next
+        page.next.map(to_relative_uri)
     }
 
     pub async fn fetch<T: std::io::Write>(
@@ -522,12 +522,12 @@ impl JobFetcher {
                                 if last < since {
                                     None
                                 } else {
-                                    page.next
+                                    page.next.map(to_relative_uri)
                                 }
                             },
                         )
                     } else {
-                        page.next
+                        page.next.map(to_relative_uri)
                     };
                     run_page_opt = self.octocrab.get_page(&next).await?;
                 }

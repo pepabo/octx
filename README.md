@@ -5,11 +5,33 @@ GitHub Data Extractor [![Test](https://github.com/udzura/octx/actions/workflows/
 ## usage
 
 ```bash
-$ export GITHUB_API_TOKEN=...
 $ export GITHUB_API_URL=https://... # Optional
+$ export GITHUB_API_TOKEN=...       # Personal access token
 $ octx --issues rust-lang rust --days-ago 30
 # CSV will be put out to stdout
 ```
+
+### GitHub App installation token
+
+Instead of `GITHUB_API_TOKEN`, you can authenticate as a GitHub App
+installation. octx will obtain an installation token from the given
+App credentials and automatically refresh it before it expires.
+
+The private key is always read from a file on disk rather than from
+an environment variable, so that the raw PEM body is never exposed
+via the process environment (`/proc/<pid>/environ`, crash dumps, log
+output, etc.).
+
+```bash
+$ export GITHUB_API_URL=https://...
+$ export GITHUB_APP_ID=12345
+$ export GITHUB_APP_PRIVATE_KEY_PATH=/path/to/private-key.pem
+$ export GITHUB_APP_INSTALLATION_ID=67890
+$ octx --issues rust-lang rust --days-ago 30
+```
+
+`GITHUB_API_TOKEN` and the three `GITHUB_APP_*` variables are mutually
+exclusive; set either one PAT or the full App triple.
 
 ## note
 

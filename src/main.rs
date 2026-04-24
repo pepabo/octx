@@ -18,8 +18,17 @@ use octx::{
 #[derive(StructOpt)]
 /// GitHub query & extracter (Enterprise ready)
 #[structopt(after_help = "ENVIRONMENT VARIABLES:
-    GITHUB_API_TOKEN: *Required* Token for your github. PAT is OK
-    GITHUB_API_URL: Your enterprise server entrypoint. Please end the path with `/'
+    GITHUB_API_URL: *Required* Your GitHub API entrypoint. Please end the path with `/'
+
+    Provide ONE of the following authentication methods:
+
+    A) Personal access token:
+       GITHUB_API_TOKEN: PAT string
+
+    B) GitHub App installation token (auto-refreshed):
+       GITHUB_APP_ID: numeric App ID
+       GITHUB_APP_PRIVATE_KEY_PATH: path to the RSA private key file (PEM)
+       GITHUB_APP_INSTALLATION_ID: numeric installation ID
 
 EXAMPLE:
     octx --issues rust-lang rust --days-ago 30
@@ -90,8 +99,11 @@ struct Command {
 
 #[derive(Deserialize, Debug)]
 struct Env {
-    github_api_token: String,
+    github_api_token: Option<String>,
     github_api_url: String,
+    github_app_id: Option<u64>,
+    github_app_private_key_path: Option<String>,
+    github_app_installation_id: Option<u64>,
 }
 
 #[tokio::main]
@@ -101,10 +113,31 @@ async fn main() -> octocrab::Result<()> {
         .context("while reading from environment")
         .unwrap();
     let args: Command = Command::from_args();
-    let octocrab = octocrab::Octocrab::builder()
-        .personal_token(config.github_api_token)
-        .base_uri(config.github_api_url)?
-        .build()?;
+    let builder = octocrab::Octocrab::builder().base_uri(config.github_api_url)?;
+    let octocrab = match (
+        config.github_api_token,
+        config.github_app_id,
+        config.github_app_private_key_path,
+        config.github_app_installation_id,
+    ) {
+        (Some(token), None, None, None) => builder.personal_token(token).build()?,
+        (None, Some(app_id), Some(key_path), Some(installation_id)) => {
+            let pem = std::fs::read(&key_path)
+                .with_context(|| format!("while reading GITHUB_APP_PRIVATE_KEY_PATH={}", key_path))
+                .unwrap();
+            let key = jsonwebtoken::EncodingKey::from_rsa_pem(&pem)
+                .context("while parsing the private key file as RSA PEM")
+                .unwrap();
+            builder
+                .app(octocrab::models::AppId(app_id), key)
+                .build()?
+                .installation(octocrab::models::InstallationId(installation_id))?
+        }
+        _ => panic!(
+            "set either GITHUB_API_TOKEN or all of \
+             GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY_PATH, GITHUB_APP_INSTALLATION_ID"
+        ),
+    };
 
     let wtr = WriterBuilder::new()
         .has_headers(true)
