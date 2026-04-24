@@ -126,29 +126,33 @@ impl PullFileFetcher {
 }
 
 impl PullFileFetcher {
-    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+    fn pulls_route(&self) -> String {
         let param = Params::default();
-        let route = format!(
+        format!(
             "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
-        );
-        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+        )
+    }
 
-        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+    pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
+        let first: octocrab::Page<PullRequest> =
+            self.octocrab.get(&self.pulls_route(), None::<&()>).await?;
+        let mut page_opt = Some(first);
+
+        while let Some(mut page) = page_opt {
             let pulls: Vec<PullRequest> = page.take_items();
             let mut last_update: Option<DateTime<Utc>> = None;
             for pull in pulls.into_iter() {
-                let route = format!(
+                let files_route = format!(
                     "repos/{owner}/{repo}/pulls/{number}/files",
                     owner = &self.owner,
                     repo = &self.name,
                     number = pull.number,
                 );
-                let files_url: Url = self.octocrab.absolute_url(route).unwrap();
                 let mut files: Vec<PullRequestFile> =
-                    self.octocrab.get(&files_url, None::<&()>).await?;
+                    self.octocrab.get(&files_route, None::<&()>).await?;
                 for file in files.iter_mut() {
                     file.pull_request_number = pull.number.into();
                     file.sdc_repository = format!("{}/{}", self.owner, self.name).into();
@@ -159,7 +163,7 @@ impl PullFileFetcher {
                 last_update = Some(pull.updated_at.unwrap_or_else(|| pull.created_at));
             }
 
-            next = if let Some(since) = self.since {
+            let next = if let Some(since) = self.since {
                 if last_update.unwrap() < since {
                     None
                 } else {
@@ -168,6 +172,7 @@ impl PullFileFetcher {
             } else {
                 page.next
             };
+            page_opt = self.octocrab.get_page(&next).await?;
         }
 
         Ok(())
@@ -177,27 +182,22 @@ impl PullFileFetcher {
         &self,
         mut wtr: csv::Writer<T>,
     ) -> octocrab::Result<()> {
-        let param = Params::default();
-        let route = format!(
-            "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
-            owner = &self.owner,
-            repo = &self.name,
-            query = param.to_query(),
-        );
-        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+        let first: octocrab::Page<PullRequest> =
+            self.octocrab.get(&self.pulls_route(), None::<&()>).await?;
+        let mut page_opt = Some(first);
 
-        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+        while let Some(mut page) = page_opt {
             let pulls: Vec<PullRequest> = page.take_items();
             let mut last_update: Option<DateTime<Utc>> = None;
             for pull in pulls.into_iter() {
-                let route = format!(
+                let commits_route = format!(
                     "repos/{owner}/{repo}/pulls/{number}/commits",
                     owner = &self.owner,
                     repo = &self.name,
                     number = pull.number,
                 );
-                let commits_url: Url = self.octocrab.absolute_url(route).unwrap();
-                let commits: Vec<Commit> = self.octocrab.get(&commits_url, None::<&()>).await?;
+                let commits: Vec<Commit> =
+                    self.octocrab.get(&commits_route, None::<&()>).await?;
                 for commit in commits.into_iter() {
                     let mut commit: PrCommitRec = commit.into();
                     commit.pull_request_number = pull.number.into();
@@ -209,7 +209,7 @@ impl PullFileFetcher {
                 last_update = Some(pull.updated_at.unwrap_or_else(|| pull.created_at));
             }
 
-            next = if let Some(since) = self.since {
+            let next = if let Some(since) = self.since {
                 if last_update.unwrap() < since {
                     None
                 } else {
@@ -218,6 +218,7 @@ impl PullFileFetcher {
             } else {
                 page.next
             };
+            page_opt = self.octocrab.get_page(&next).await?;
         }
 
         Ok(())

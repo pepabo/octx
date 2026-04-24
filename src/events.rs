@@ -156,16 +156,15 @@ impl UrlConstructor for IssueEventFetcher {
         format!("{}/{}", self.owner, self.name)
     }
 
-    fn entrypoint(&self) -> Option<Url> {
+    fn entrypoint_route(&self) -> String {
         let param = Params::default();
 
-        let route = format!(
+        format!(
             "repos/{owner}/{repo}/issues/events?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
-        );
-        self.octocrab.absolute_url(route).ok()
+        )
     }
 }
 
@@ -176,9 +175,13 @@ impl LoopWriter for IssueEventFetcher {
 
 impl IssueEventFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
-        let mut next: Option<Url> = self.entrypoint();
+        let first: octocrab::Page<IssueEvent> = self
+            .octocrab
+            .get(self.entrypoint_route(), None::<&()>)
+            .await?;
+        let mut page_opt = Some(first);
 
-        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+        while let Some(mut page) = page_opt {
             let labels: Vec<IssueEvent> = page.take_items();
             let mut last_update: Option<DateTime> = None;
             for label in labels.into_iter() {
@@ -187,7 +190,7 @@ impl IssueEventFetcher {
                 wtr.serialize(&label).expect("Serialize failed");
                 last_update = label.created_at.into()
             }
-            next = if let Some(since) = self.since {
+            let next = if let Some(since) = self.since {
                 if last_update.unwrap() < since {
                     None
                 } else {
@@ -196,6 +199,7 @@ impl IssueEventFetcher {
             } else {
                 page.next
             };
+            page_opt = self.octocrab.get_page(&next).await?;
         }
 
         Ok(())

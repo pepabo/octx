@@ -51,7 +51,7 @@ pub trait RepositryAware {
 pub trait UrlConstructor {
     fn reponame(&self) -> String;
 
-    fn entrypoint(&self) -> Option<reqwest::Url>;
+    fn entrypoint_route(&self) -> String;
 }
 
 pub trait LoopWriter: UrlConstructor {

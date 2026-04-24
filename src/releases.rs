@@ -112,16 +112,15 @@ impl UrlConstructor for ReleaseFetcher {
         format!("{}/{}", self.owner, self.name)
     }
 
-    fn entrypoint(&self) -> Option<Url> {
+    fn entrypoint_route(&self) -> String {
         let param = Params::default();
 
-        let route = format!(
+        format!(
             "repos/{owner}/{repo}/releases?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
-        );
-        self.octocrab.absolute_url(route).ok()
+        )
     }
 }
 
@@ -132,7 +131,11 @@ impl LoopWriter for ReleaseFetcher {
 
 impl ReleaseFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
-        let mut next: Option<Url> = self.entrypoint();
+        let first: octocrab::Page<Release> = self
+            .octocrab
+            .get(self.entrypoint_route(), None::<&()>)
+            .await?;
+        let mut next = self.write_and_continue(first, &mut wtr);
 
         while let Some(page) = self.octocrab.get_page(&next).await? {
             next = self.write_and_continue(page, &mut wtr);
