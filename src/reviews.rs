@@ -111,16 +111,18 @@ impl ReviewFetcher {
 impl ReviewFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
         let param = Params::default();
-        let route = format!(
+        let pulls_route = format!(
             "repos/{owner}/{repo}/pulls?{query}&state=all&sort=updated&direction=desc",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
         );
-        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+        let first: octocrab::Page<PullRequest> =
+            self.octocrab.get(&pulls_route, None::<&()>).await?;
+        let mut page_opt = Some(first);
 
         let mut pull_nums: Vec<u64> = vec![];
-        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+        while let Some(mut page) = page_opt {
             let pulls: Vec<PullRequest> = page.take_items();
             let mut last_update: Option<DateTime<Utc>> = None;
             for pull in pulls.into_iter() {
@@ -128,7 +130,7 @@ impl ReviewFetcher {
                 last_update = Some(pull.updated_at.unwrap_or_else(|| pull.created_at));
             }
 
-            next = if let Some(since) = self.since {
+            let next = if let Some(since) = self.since {
                 last_update.map_or_else(
                     || None,
                     |last| {
@@ -142,19 +144,22 @@ impl ReviewFetcher {
             } else {
                 page.next
             };
+            page_opt = self.octocrab.get_page(&next).await?;
         }
 
         for number in pull_nums.into_iter() {
             let param = Params::default();
-            let route = format!(
+            let reviews_route = format!(
                 "repos/{owner}/{repo}/pulls/{pull_number}/reviews?{query}",
                 owner = &self.owner,
                 repo = &self.name,
                 pull_number = number,
                 query = param.to_query(),
             );
-            let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
-            while let Some(mut page) = self.octocrab.get_page(&next).await? {
+            let first: octocrab::Page<Review> =
+                self.octocrab.get(&reviews_route, None::<&()>).await?;
+            let mut page_opt = Some(first);
+            while let Some(mut page) = page_opt {
                 let reviews: Vec<Review> = page.take_items();
                 for review in reviews.into_iter() {
                     let mut review: ReviewRec = review.into();
@@ -163,7 +168,7 @@ impl ReviewFetcher {
 
                     wtr.serialize(review).expect("Serialize failed");
                 }
-                next = page.next;
+                page_opt = self.octocrab.get_page(&page.next).await?;
             }
         }
         Ok(())

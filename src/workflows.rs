@@ -259,16 +259,15 @@ impl UrlConstructor for WorkFlowFetcher {
         format!("{}/{}", self.owner, self.name)
     }
 
-    fn entrypoint(&self) -> Option<Url> {
+    fn entrypoint_route(&self) -> String {
         let param = Params::default();
 
-        let route = format!(
+        format!(
             "repos/{owner}/{repo}/actions/workflows?{query}",
             owner = &self.owner,
             repo = &self.name,
             query = param.to_query(),
-        );
-        self.octocrab.absolute_url(route).ok()
+        )
     }
 }
 
@@ -277,17 +276,16 @@ impl UrlConstructor for JobStepFetcher {
         format!("{}/{}", self.owner, self.name)
     }
 
-    fn entrypoint(&self) -> Option<Url> {
+    fn entrypoint_route(&self) -> String {
         let param = Params::default();
 
-        let route = format!(
+        format!(
             "repos/{owner}/{repo}/actions/jobs/{job_id}?{query}",
             owner = &self.owner,
             repo = &self.name,
             job_id = &self.job_id,
             query = param.to_query(),
-        );
-        self.octocrab.absolute_url(route).ok()
+        )
     }
 }
 
@@ -311,7 +309,11 @@ impl WorkFlowFetcher {
     }
 
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
-        let mut next: Option<Url> = self.entrypoint();
+        let first: octocrab::Page<WorkFlow> = self
+            .octocrab
+            .get(self.entrypoint_route(), None::<&()>)
+            .await?;
+        let mut next = self.write_and_continue(first, &mut wtr);
 
         while let Some(page) = self.octocrab.get_page(&next).await? {
             next = self.write_and_continue(page, &mut wtr);
@@ -340,29 +342,26 @@ impl RunFetcher {
         format!("{}/{}", self.owner, self.name)
     }
 
-    fn entrypoint(&self, workflow_id: Option<String>) -> Option<Url> {
+    fn entrypoint_route(&self, workflow_id: Option<String>) -> String {
         let param = Params::default();
-        let route;
 
         if let Some(workflow_id_) = workflow_id {
-            route = format!(
+            format!(
                 "repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs?{query}",
                 owner = &self.owner,
                 repo = &self.name,
                 workflow_id = &workflow_id_,
                 query = param.to_query(),
-            );
+            )
         } else {
             // FIXME: no way to sort runs by updated_at
-            route = format!(
+            format!(
                 "repos/{owner}/{repo}/actions/runs?{query}",
                 owner = &self.owner,
                 repo = &self.name,
                 query = param.to_query(),
             )
         }
-
-        self.octocrab.absolute_url(route).ok()
     }
 
     fn write_and_continue<T: std::io::Write>(
@@ -401,7 +400,11 @@ impl RunFetcher {
         mut wtr: csv::Writer<T>,
         workflow_id: Option<String>,
     ) -> octocrab::Result<()> {
-        let mut next: Option<Url> = self.entrypoint(workflow_id);
+        let first: octocrab::Page<Run> = self
+            .octocrab
+            .get(self.entrypoint_route(workflow_id), None::<&()>)
+            .await?;
+        let mut next = self.write_and_continue(first, &mut wtr);
 
         while let Some(page) = self.octocrab.get_page(&next).await? {
             next = self.write_and_continue(page, &mut wtr);
@@ -430,19 +433,18 @@ impl JobFetcher {
         format!("{}/{}", self.owner, self.name)
     }
 
-    fn entrypoint(&self, run_id: String) -> Option<Url> {
+    fn entrypoint_route(&self, run_id: String) -> String {
         let param = Params {
             filter: Some("all".to_string()),
             ..Default::default()
         };
-        let route = format!(
+        format!(
             "repos/{owner}/{repo}/actions/runs/{run_id}/jobs?{query}",
             owner = &self.owner,
             repo = &self.name,
             run_id = &run_id,
             query = param.to_query(),
-        );
-        self.octocrab.absolute_url(route).ok()
+        )
     }
 
     fn write_and_continue<T: std::io::Write>(
@@ -465,7 +467,11 @@ impl JobFetcher {
         run_id: Option<String>,
     ) -> octocrab::Result<()> {
         if let Some(run_id_) = run_id {
-            let mut next: Option<Url> = self.entrypoint(run_id_);
+            let first: octocrab::Page<Job> = self
+                .octocrab
+                .get(self.entrypoint_route(run_id_), None::<&()>)
+                .await?;
+            let mut next = self.write_and_continue(first, &mut wtr);
 
             while let Some(page) = self.octocrab.get_page(&next).await? {
                 next = self.write_and_continue(page, &mut wtr);
@@ -485,18 +491,29 @@ impl JobFetcher {
                 .await?
             {
                 let mut last_update: Option<DateTime> = None;
-                let mut run_url = run_fetcher.entrypoint(Some(workflow.id.to_string()));
-                while let Some(mut page) = self.octocrab.get_page(&run_url).await? {
+                let runs_first: octocrab::Page<Run> = self
+                    .octocrab
+                    .get(
+                        run_fetcher.entrypoint_route(Some(workflow.id.to_string())),
+                        None::<&()>,
+                    )
+                    .await?;
+                let mut run_page_opt = Some(runs_first);
+                while let Some(mut page) = run_page_opt {
                     let runs: Vec<Run> = page.take_items();
                     for run in runs.into_iter() {
-                        let mut job_url: Option<Url> = self.entrypoint(run.id.to_string());
+                        let job_first: octocrab::Page<Job> = self
+                            .octocrab
+                            .get(self.entrypoint_route(run.id.to_string()), None::<&()>)
+                            .await?;
+                        let mut job_url = self.write_and_continue(job_first, &mut wtr);
                         while let Some(page) = self.octocrab.get_page(&job_url).await? {
                             job_url = self.write_and_continue(page, &mut wtr);
                         }
                         last_update = Some(run.updated_at);
                     }
 
-                    run_url = if let Some(since) = self.since {
+                    let next = if let Some(since) = self.since {
                         last_update.map_or_else(
                             || None,
                             |last| {
@@ -510,6 +527,7 @@ impl JobFetcher {
                     } else {
                         page.next
                     };
+                    run_page_opt = self.octocrab.get_page(&next).await?;
                 }
             }
         }

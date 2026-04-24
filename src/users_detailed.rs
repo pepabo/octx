@@ -49,15 +49,16 @@ impl UserDetailedFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
         let param = Params::default();
         let route = format!("users?{query}", query = param.to_query());
-        let mut next: Option<Url> = self.octocrab.absolute_url(route).ok();
+        let first: octocrab::Page<User> = self.octocrab.get(&route, None::<&()>).await?;
+        let mut page_opt = Some(first);
 
-        while let Some(mut page) = self.octocrab.get_page(&next).await? {
+        while let Some(mut page) = page_opt {
             let users: Vec<User> = page.take_items();
             for user in users.into_iter() {
                 let detail: UserDeailed = self.octocrab.get(&user.url, None::<&()>).await?;
                 wtr.serialize(&detail).expect("Serialize failed");
             }
-            next = page.next
+            page_opt = self.octocrab.get_page(&page.next).await?;
         }
 
         Ok(())

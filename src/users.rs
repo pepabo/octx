@@ -70,11 +70,10 @@ impl UrlConstructor for UserFetcher {
         "".to_string()
     }
 
-    fn entrypoint(&self) -> Option<Url> {
+    fn entrypoint_route(&self) -> String {
         let param = Params::default();
 
-        let route = format!("users?{query}", query = param.to_query());
-        self.octocrab.absolute_url(route).ok()
+        format!("users?{query}", query = param.to_query())
     }
 }
 
@@ -85,7 +84,11 @@ impl LoopWriter for UserFetcher {
 
 impl UserFetcher {
     pub async fn fetch<T: std::io::Write>(&self, mut wtr: csv::Writer<T>) -> octocrab::Result<()> {
-        let mut next: Option<Url> = self.entrypoint();
+        let first: octocrab::Page<User> = self
+            .octocrab
+            .get(self.entrypoint_route(), None::<&()>)
+            .await?;
+        let mut next = self.write_and_continue(first, &mut wtr);
 
         while let Some(page) = self.octocrab.get_page(&next).await? {
             next = self.write_and_continue(page, &mut wtr);
