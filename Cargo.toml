@@ -15,6 +15,7 @@ http = "1"
 chrono = { version = "^0.4", features = ["serde"] }
 anyhow = "1.0"
 octocrab = "0.49"
+jsonwebtoken = "10"
 tokio = { version = "1.0", default-features = false, features = ["macros", "rt-multi-thread", "time"] }
 serde = { version = "1.0.106", features = ["derive"] }
 serde_urlencoded = "0.7.0"

@@ -980,6 +980,7 @@ dependencies = [
  "env_logger",
  "envy",
  "http",
+ "jsonwebtoken",
  "log",
  "octocrab",
  "serde",
