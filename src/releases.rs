@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use octocrab::models::repos::Asset;
-use reqwest::Url;
+use url::Url;
 use serde::*;
 
 use crate::*;
@@ -25,7 +25,7 @@ pub struct Release {
     pub prerelease: bool,
     pub created_at: DateTime<Utc>,
     pub published_at: Option<DateTime<Utc>>,
-    pub author: Option<octocrab::models::User>,
+    pub author: Option<octocrab::models::Author>,
     pub assets: Vec<Asset>,
 }
 
@@ -72,7 +72,7 @@ impl From<Release> for ReleaseRec {
             prerelease: from.prerelease,
             created_at: from.created_at,
             published_at: from.published_at,
-            author_id: from.author.map(|u| u.id),
+            author_id: from.author.map(|u| u.id.0 as i64),
             assets: from
                 .assets
                 .iter()

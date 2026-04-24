@@ -1,7 +1,7 @@
 extern crate octocrab;
 use chrono::{DateTime, Utc};
-use octocrab::models::User;
-use reqwest::Url;
+use octocrab::models::Author as User;
+use url::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::*;
@@ -71,7 +71,7 @@ impl From<Review> for ReviewRec {
             id: from.id,
             node_id: from.node_id,
             html_url: from.html_url,
-            user_id: from.user.id,
+            user_id: from.user.id.0 as i64,
             body: from.body,
             commit_id: from.commit_id,
             state: from.state,

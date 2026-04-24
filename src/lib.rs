@@ -48,6 +48,13 @@ pub trait RepositryAware {
     fn set_repository(&mut self, name: String);
 }
 
+pub fn enum_to_string<T: serde::Serialize>(value: &T) -> String {
+    serde_json::to_string(value)
+        .unwrap_or_default()
+        .trim_matches('"')
+        .to_string()
+}
+
 pub trait UrlConstructor {
     fn reponame(&self) -> String;
 
@@ -62,7 +69,7 @@ pub trait LoopWriter: UrlConstructor {
         &self,
         mut page: octocrab::Page<Self::Model>,
         wtr: &mut csv::Writer<T>,
-    ) -> Option<reqwest::Url> {
+    ) -> Option<http::Uri> {
         let labels: Vec<Self::Model> = page.take_items();
         for label in labels.into_iter() {
             let mut label: Self::Record = label.into();

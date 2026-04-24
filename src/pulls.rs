@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use reqwest::Url;
+use url::Url;
 use serde::*;
 
 //use crate::commits::{Commit, GitCommit, GitUser, Object, UserId};

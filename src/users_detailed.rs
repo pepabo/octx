@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use octocrab::models::User;
-use reqwest::Url;
+use octocrab::models::Author as User;
+use url::Url;
 use serde::*;
 
 use crate::*;

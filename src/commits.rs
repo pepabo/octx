@@ -1,4 +1,4 @@
-use reqwest::Url;
+use url::Url;
 use serde::*;
 
 use crate::*;

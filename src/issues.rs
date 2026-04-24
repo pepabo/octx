@@ -1,5 +1,6 @@
 use octocrab::models::issues::*;
-use reqwest::Url;
+use octocrab::models::{AuthorAssociation, IssueState};
+use url::Url;
 type DateTime = chrono::DateTime<chrono::Utc>;
 
 use serde::Serialize;
@@ -16,8 +17,8 @@ pub struct IssueRec {
     pub comments_url: Url,
     pub events_url: Url,
     pub html_url: Url,
-    pub number: i64,
-    pub state: String,
+    pub number: u64,
+    pub state: IssueState,
     pub title: String,
     pub body: Option<String>,
     pub body_text: Option<String>,
@@ -26,7 +27,7 @@ pub struct IssueRec {
     pub labels: String,
     pub assignee_id: Option<i64>,
     pub assignees: String,
-    pub author_association: String,
+    pub author_association: Option<AuthorAssociation>,
     pub milestone: Option<String>,
     pub locked: bool,
     pub active_lock_reason: Option<String>,
@@ -55,7 +56,7 @@ impl From<Issue> for IssueRec {
         let assignees = from.assignees;
 
         IssueRec {
-            id: from.id,
+            id: from.id.0 as i64,
             node_id: from.node_id,
             url: from.url,
             repository_url: from.repository_url,
@@ -69,10 +70,10 @@ impl From<Issue> for IssueRec {
             body: from.body,
             body_text: from.body_text,
             body_html: from.body_html,
-            user_id: from.user.id,
+            user_id: from.user.id.0 as i64,
             labels: serde_json::to_string(&labels).unwrap_or("[]".to_string()),
             assignee_id: match from.assignee {
-                Some(user) => Some(user.id),
+                Some(user) => Some(user.id.0 as i64),
                 None => None,
             },
             assignees: assignees

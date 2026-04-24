@@ -101,9 +101,9 @@ async fn main() -> octocrab::Result<()> {
         .context("while reading from environment")
         .unwrap();
     let args: Command = Command::from_args();
-    let octocrab = octocrab::OctocrabBuilder::new()
+    let octocrab = octocrab::Octocrab::builder()
         .personal_token(config.github_api_token)
-        .base_url(&config.github_api_url)?
+        .base_uri(config.github_api_url)?
         .build()?;
 
     let wtr = WriterBuilder::new()
