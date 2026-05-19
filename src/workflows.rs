@@ -29,8 +29,8 @@ pub struct RunRec {
     pub id: i64,
     pub workflow_id: i64,
     pub node_id: String,
-    pub name: String,
-    pub head_branch: String,
+    pub name: Option<String>,
+    pub head_branch: Option<String>,
     pub head_sha: String,
     pub run_number: i64,
     pub event: String,  // TODO: to_enum
