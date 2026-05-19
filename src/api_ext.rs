@@ -46,8 +46,11 @@ pub mod models {
         pub id: i64,
         pub workflow_id: i64,
         pub node_id: String,
-        pub name: String,
-        pub head_branch: String,
+        // GitHub の workflow runs API は、 workflow_dispatch /
+        // repository_dispatch などで起動された run について name や
+        // head_branch を null で返すことがある。
+        pub name: Option<String>,
+        pub head_branch: Option<String>,
         pub head_sha: String,
         pub run_number: i64,
         pub event: String,
