@@ -170,7 +170,7 @@ impl PullsFetcher {
             }
 
             let next = if let Some(since) = self.since {
-                if last_update.is_some() && last_update.unwrap() < since {
+                if last_update.map_or(false, |u| u < since) {
                     None
                 } else {
                     page.next.map(to_relative_uri)
