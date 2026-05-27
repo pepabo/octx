@@ -10,9 +10,10 @@ use std::io;
 extern crate octx;
 use octx::{
     comments::CommentFetcher, commits::CommitFetcher, events::IssueEventFetcher,
-    issues::IssueFetcher, labels::LabelFetcher, pulls::PullFileFetcher, releases::ReleaseFetcher,
-    reviews::ReviewFetcher, users::UserFetcher, users_detailed::UserDetailedFetcher,
-    workflows::JobFetcher, workflows::RunFetcher, workflows::WorkFlowFetcher,
+    issues::IssueFetcher, labels::LabelFetcher, pulls::PullFileFetcher, pulls::PullsFetcher,
+    releases::ReleaseFetcher, reviews::ReviewFetcher, users::UserFetcher,
+    users_detailed::UserDetailedFetcher, workflows::JobFetcher, workflows::RunFetcher,
+    workflows::WorkFlowFetcher,
 };
 
 #[derive(StructOpt)]
@@ -58,6 +59,9 @@ struct Command {
     /// Extract users - owner/name is not required for this option
     #[structopt(long = "users")]
     target_users: bool,
+    /// Extract pull requests with full detail (head/base refs, additions, deletions, user info etc.)
+    #[structopt(long = "pulls")]
+    target_pulls: bool,
     /// Extract Files included in pull requests
     #[structopt(long = "pull-request-files")]
     target_pull_files: bool,
@@ -179,6 +183,10 @@ async fn main() -> octocrab::Result<()> {
         } else if args.target_commits {
             info!("Target: commits");
             let runner = CommitFetcher::new(owner, name, since, octocrab);
+            runner.fetch(wtr).await?;
+        } else if args.target_pulls {
+            info!("Target: pulls");
+            let runner = PullsFetcher::new(owner, name, since, octocrab);
             runner.fetch(wtr).await?;
         } else if args.target_pull_files {
             info!("Target: pull files");
