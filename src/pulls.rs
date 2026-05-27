@@ -150,7 +150,7 @@ impl PullsFetcher {
                 // detail を叩かずスキップする ( 増分取り込みで detail call 数を抑える ) 。
                 // last_update は更新済みなのでループ末尾の打ち切り判定は引き続き機能する。
                 if let Some(since) = self.since {
-                    if summary_updated.map_or(false, |u| u < since) {
+                    if summary_updated.is_some_and(|u| u < since) {
                         continue;
                     }
                 }
@@ -170,7 +170,7 @@ impl PullsFetcher {
             }
 
             let next = if let Some(since) = self.since {
-                if last_update.map_or(false, |u| u < since) {
+                if last_update.is_some_and(|u| u < since) {
                     None
                 } else {
                     page.next.map(to_relative_uri)
