@@ -5,6 +5,7 @@ use serde::*;
 //use crate::commits::{Commit, GitCommit, GitUser, Object, UserId};
 use crate::commits::Commit;
 use crate::*;
+use octocrab::models::{AuthorAssociation, IssueState};
 
 #[derive(Serialize, Debug)]
 pub struct PullRequestRec {
@@ -13,7 +14,7 @@ pub struct PullRequestRec {
     pub node_id: Option<String>,
     pub url: String,
     pub html_url: Option<String>,
-    pub state: Option<String>,
+    pub state: Option<IssueState>,
     pub title: Option<String>,
     pub body: Option<String>,
     pub user_id: Option<i64>,
@@ -37,7 +38,7 @@ pub struct PullRequestRec {
     pub deletions: Option<u64>,
     pub changed_files: Option<u64>,
     pub commits: Option<u64>,
-    pub author_association: Option<String>,
+    pub author_association: Option<AuthorAssociation>,
     pub draft: Option<bool>,
     pub locked: bool,
     pub maintainer_can_modify: bool,
@@ -65,7 +66,7 @@ impl From<octocrab::models::pulls::PullRequest> for PullRequestRec {
             node_id: p.node_id,
             url: p.url,
             html_url: p.html_url.map(|u| u.to_string()),
-            state: p.state.map(|s| format!("{:?}", s).to_lowercase()),
+            state: p.state,
             title: p.title,
             body: p.body,
             user_id,
@@ -89,7 +90,7 @@ impl From<octocrab::models::pulls::PullRequest> for PullRequestRec {
             deletions: p.deletions,
             changed_files: p.changed_files,
             commits: p.commits,
-            author_association: p.author_association.map(|a| format!("{:?}", a)),
+            author_association: p.author_association,
             draft: p.draft,
             locked: p.locked,
             maintainer_can_modify: p.maintainer_can_modify,
@@ -142,6 +143,18 @@ impl PullsFetcher {
             let pulls = page.take_items();
             let mut last_update: Option<DateTime<Utc>> = None;
             for pull_summary in pulls.into_iter() {
+                let summary_updated = pull_summary.updated_at.or(pull_summary.created_at);
+                last_update = summary_updated;
+
+                // list endpoint の updated_at で since を満たさない PR は
+                // detail を叩かずスキップする ( 増分取り込みで detail call 数を抑える ) 。
+                // last_update は更新済みなのでループ末尾の打ち切り判定は引き続き機能する。
+                if let Some(since) = self.since {
+                    if summary_updated.map_or(false, |u| u < since) {
+                        continue;
+                    }
+                }
+
                 let detail_route = format!(
                     "/repos/{owner}/{repo}/pulls/{number}",
                     owner = &self.owner,
@@ -151,7 +164,6 @@ impl PullsFetcher {
                 let pull: octocrab::models::pulls::PullRequest =
                     self.octocrab.get(&detail_route, None::<&()>).await?;
 
-                last_update = pull.updated_at.or(pull.created_at);
                 let mut rec: PullRequestRec = pull.into();
                 rec.set_repository(format!("{}/{}", self.owner, self.name));
                 wtr.serialize(&rec).expect("Serialize failed");
