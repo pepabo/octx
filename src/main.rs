@@ -117,7 +117,21 @@ async fn main() -> octocrab::Result<()> {
         .context("while reading from environment")
         .unwrap();
     let args: Command = Command::from_args();
-    let builder = octocrab::Octocrab::builder().base_uri(config.github_api_url)?;
+    // デフォルトの RetryConfig::Simple は transient エラーの即時リトライのみで、
+    // GitHub の rate limit には対応しない。 大量の API を叩く backfill 用途では
+    // primary rate limit ( 403 ) に達するため、 rate limit ヘッダ ( x-ratelimit-reset
+    // / retry-after ) を見て reset まで待ってから再試行する HandleRateLimits を使う。
+    let builder = octocrab::Octocrab::builder()
+        .base_uri(config.github_api_url)?
+        .add_retry_config(
+            octocrab::service::middleware::retry::RetryConfig::HandleRateLimits {
+                metrics: std::sync::Arc::new(
+                    octocrab::service::middleware::retry::NoOpRateLimitMetrics,
+                ),
+                max_retries: 5,
+                min_wait_seconds: 60,
+            },
+        );
     let octocrab = match (
         config.github_api_token,
         config.github_app_id,
