@@ -117,7 +117,18 @@ async fn main() -> octocrab::Result<()> {
         .context("while reading from environment")
         .unwrap();
     let args: Command = Command::from_args();
-    let builder = octocrab::Octocrab::builder().base_uri(config.github_api_url)?;
+    let builder = octocrab::Octocrab::builder()
+        .base_uri(config.github_api_url)?
+        .add_retry_config(
+            octocrab::service::middleware::retry::RetryConfig::HandleRateLimits {
+                metrics: std::sync::Arc::new(
+                    octocrab::service::middleware::retry::NoOpRateLimitMetrics,
+                ),
+                max_retries: 5,
+                min_wait_seconds: 60,
+                retry_on_forbidden: true,
+            },
+        );
     let octocrab = match (
         config.github_api_token,
         config.github_app_id,
@@ -132,10 +143,15 @@ async fn main() -> octocrab::Result<()> {
             let key = jsonwebtoken::EncodingKey::from_rsa_pem(&pem)
                 .context("while parsing the private key file as RSA PEM")
                 .unwrap();
-            builder
-                .app(octocrab::models::AppId(app_id), key)
-                .build()?
-                .installation(octocrab::models::InstallationId(installation_id))?
+            let app_crab = builder.app(octocrab::models::AppId(app_id), key).build()?;
+            let installation_id = octocrab::models::InstallationId(installation_id);
+            match args.name {
+                Some(ref name) => app_crab
+                    .installation_builder(installation_id)
+                    .repositories(vec![name.clone()])
+                    .build()?,
+                None => app_crab.installation(installation_id)?,
+            }
         }
         _ => panic!(
             "set either GITHUB_API_TOKEN or all of \
