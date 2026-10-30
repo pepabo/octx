@@ -93,7 +93,7 @@ impl From<octocrab::models::pulls::PullRequest> for PullRequestRec {
             author_association: p.author_association,
             draft: p.draft,
             locked: p.locked,
-            maintainer_can_modify: p.maintainer_can_modify,
+            maintainer_can_modify: p.maintainer_can_modify.unwrap_or(false),
             sdc_repository: String::default(),
         }
     }
